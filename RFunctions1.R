@@ -576,11 +576,18 @@ jmplot <- function(x, y, levels, names=NULL, xlim=NULL, ylim=NULL, log="", main=
     # Restore plotting parameters
     par(pars)
 }
-#x <- rexp(100)
-#y <- rexp(100)
-#levels <- as.factor(sample(c("Male","Female"), 100, TRUE))
-#jmplot(x, y, levels, col=levels)
+#-----------#
+#- example -#
+#-----------#
+if(!TRUE){
+  set.seed(1220)
+  x <- rexp(100)
+  y <- rexp(100)
+  levels <- as.factor(sample(c("Male","Female"), 100, TRUE))
+  jmplot(x, y, levels, col=levels)
+}
 
+                          
 ############
 ## dsplot ##
 ############
