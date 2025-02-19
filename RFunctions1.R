@@ -511,8 +511,6 @@ jmplot <- function(x, y, levels, names=NULL, xlim=NULL, ylim=NULL, log="", main=
                    xratio=0.8, yratio=xratio, show.n=FALSE, cex.n=NULL, ann=par("ann"), axes=TRUE, frame.plot=axes,
                    panel.first=NULL, panel.last=NULL, asp=NA, ...) {
     ## Version 1.1  2012/3/8
-    ## Version 2.1  2025/2/17 Fixed the error where dist and jit were switched.
-    ##
     ##
     localTplot <- function(..., type="b", horizontal=FALSE) tplot(..., type=type, axes=FALSE, horizontal=horizontal)
     eliminateTplot <- function(func, ..., type, dist, jit, names, group.col, boxcol, boxborder, group.pch, median.line, mean.line, median.pars, mean.pars, boxplot.pars, my.gray, axes, frame.plot, add, horizontal) func(...)
