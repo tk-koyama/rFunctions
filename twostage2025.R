@@ -46,7 +46,7 @@ TwoStageInf.prob <- function(p0, p1, n1, R1, nT, RT){
 
     PROB <- data.frame(x1v, px0, px1, cp0, cp1)
         ## Stage 1 pmf and conditional power
-    POWE <- c( sum(px0 * cp0), sum(px1 * cp1) )
+    POWER <- c( sum(px0 * cp0), sum(px1 * cp1) )
         ## Unconditional type I erro rate and power
     PET  <- c( pbinom(R1-1, n1, p0), pbinom(R1-1, n1, p1) )
         ## Probability of early termination 
@@ -54,7 +54,7 @@ TwoStageInf.prob <- function(p0, p1, n1, R1, nT, RT){
         ## Expected sample size
 
     DESIGN <- data.frame(p0=p0, p1=p1, n1=n1, R1=R1, nT=nT, RT=RT)
-    CHARA <- data.frame(POWE, PET, EN)
+    CHARA <- data.frame(POWER, PET, EN)
         row.names(CHARA) <- c('NULL','ALT')
     list(DESIGN, CHARA)
 }
