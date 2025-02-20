@@ -1,30 +1,6 @@
-#################
-kn <- function(x){
-    out <- knit(x)
-    system(paste('pdflatex', out))
-    }
-
-#################
-logMain <- function(mn, mx, base){
-    lg <- seq(floor(log(mn, base)), ceiling(log(mx, base)))
-    or <- base^lg
-    data.frame(lg,or,la=rep('',length(lg)))
-}
-
-#################
-logBetween <- function(mn, mx, base){
-    # starting point is 10^exponent
-    lo <- c(floor(log(mn, base)), ceiling(log(mx, base)))
-    sp <- seq(min(lo), max(lo), by=1)
-        bs <- as.list(base^sp)
-        or <- unlist(lapply(bs, function(x) cumsum(rep(x,9))[-1]))
-        lg <- log(or, base)
-        data.frame(lg,or,la=rep('',length(lg)))
-}
-
-
-
-#################
+## -------- ##
+##          ##
+## -------- ##
 editRedCapData <- function(d, changeNames=TRUE){
     ## Do d <- data ; rm(data) first.
     ## Don't forget the .r file that redcap creates; it has rm(list=ls()) in it!
@@ -42,8 +18,9 @@ editRedCapData <- function(d, changeNames=TRUE){
         if(changeNames){ names(d) <- capitalize(gsub('_+', '.', names(d))) }
     d
 }
-
-#################
+## -------- ##
+##          ##
+## -------- ##
 groupSum <- function(v,g=NULL, Combined=TRUE, Test=FALSE, np=FALSE, MissingAsGroup=FALSE, r=2){
     vg <- list(v)
     if(Test) Combined <- TRUE
@@ -78,8 +55,9 @@ groupSum <- function(v,g=NULL, Combined=TRUE, Test=FALSE, np=FALSE, MissingAsGro
     }
     round(data.frame(out), r)
 }
-
-#################
+## -------- ##
+##          ##
+## -------- ##
 propPlot <- function(x, TrueFalse, howManyGroups=4, cutPoints=NULL){
     # x is continuous.
     # TrueFalse
@@ -120,8 +98,9 @@ propPlot <- function(x, TrueFalse, howManyGroups=4, cutPoints=NULL){
     box(bty='L')
     tab
 }
-
-#################
+## -------- ##
+##          ##
+## -------- ##
 multTime <- function(lap, multiplier, fmt=TRUE){ ## xxx
     # lap is in 'Min.Sec' format. "8.47" means 8 minutes 47 seconds.
     Min <- floor(lap) ## interger portion.
@@ -134,8 +113,9 @@ multTime <- function(lap, multiplier, fmt=TRUE){ ## xxx
         if(fmt) out <- paste(MIN, formatC(SEC, format='f', digit=0, width=2, flag=0), sep=':')
     out
 }
-
-#################
+## -------- ##
+##          ##
+## -------- ##
 addTime <- function(laps, fmt=TRUE){
     # laps is in 'Min.Sec' format. "8.47" means 8 minutes 47 seconds.
     min <- floor(laps)
@@ -146,8 +126,264 @@ addTime <- function(laps, fmt=TRUE){
         secS <- round(SEC %% 60)
     multTime(MIN+secM+secS/100, 1, fmt)
 }
+## -------- ##
+##          ##
+## -------- ##
+BinPower <- function(n, p0, p1, alp=0.05, r=TRUE){
+    # one sample Binomial test.
+    # one-sided test
 
-#################
+    if(p0 < p1){
+    Xcr <- qbinom(1-alp, n, p0)+1
+    # Reject if X is Xcr or larger.
+    typeI <- sum( dbinom(Xcr:n, n, p0) )
+    Power <- sum( dbinom(Xcr:n, n, p1) )
+    }
+    if(p0 > p1){
+    Xcr <- qbinom(alp, n, p0)-1
+    # Reject if X is Xcr or smaller.
+    typeI <- sum( dbinom(0:Xcr, n, p0) )
+    Power <- sum( dbinom(0:Xcr, n, p1) )
+    }
+    if(r){
+        typeI <- round(typeI, 4)
+        Power <- round(Power, 4)
+    }
+    data.frame(n, p0, p1, alp, Xcr, typeI, Power)
+    }
+## -------- ##
+##          ##
+## -------- ##
+BetaMV <- function(a,b){
+    ## Compute, mean, variance, mode of a Beta distribution.
+        s <- a + b
+    me <- a/s
+    va <- (a*b) / (s^2*(s+1))
+        ss <- sqrt(va)
+    mo <- (a-1) / (a-1+b-1)
+        if( any(c(a,b) <= 1) ) mo <- NA
+    data.frame(a=a,b=b, mean=me, var=va, sd=ss, mode=mo)
+}
+## -------- ##
+##          ##
+## -------- ##
+BetaParameters <- function(m,v, PLOT=FALSE){
+    ## Solving for alpha and beta in BETA distribition given mean and variance.
+    a <- m^2*(1-m)/v - m
+    b <- (1-m)*(m*(1-m)/v-1)
+        if(PLOT) plotBetaDis(a,b)
+    c(a,b)
+}
+## -------- ##
+##          ##
+## -------- ##
+plotBetaDis <- function(a,b, add=FALSE, ...){
+  # Plot Beta(a,b) pdf.
+  p <- seq(0,1, length=1000)
+  q <- dbeta(p, a,b)
+  if(!add) plot(p,q, type='l', ylab='Density', yaxt='n', ...)
+  if( add) lines(p,q, ...)
+}
+## -------- ##
+##          ##
+## -------- ##
+BetaCI <- function(a,b, x,n, p){
+  ## 100*p % credible interval and median from Beta(a,b).
+  ## and data = x/n.
+  pp <- (1-p)/2
+  lb <- qbeta(pp, a+x,b+n-x)
+  ub <- qbeta(1-pp, a+x,b+n-x)
+  med <- qbeta(0.5, a+x, b+n-x)
+  data.frame(prior.a=a, prior.b=b, x=x, n=n, pr=100*p, lb, med, ub)
+}
+## -------- ##
+##          ##
+## -------- ##
+marginTab <- function(tab){
+    colS <- colSums(tab)
+    rowS <- rowSums(tab)
+    gran <- sum(tab)
+        Total <- c(rowS,gran)
+        rbind(cbind(tab, colS), Total)
+}
+## -------- ##
+##          ##
+## -------- ##
+shadeNormalDis <- function(m,s, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='red', shadeDensity=60, add=FALSE, yl=NA, ...){
+    X <- seq(m-4*s, m+4*s, length=500)
+    Y <- dnorm(X, mean=m, sd=s)
+        if(is.na(yl[1])) yl <- c(0,max(Y)*1.05)
+    if(!add){
+    plot(X, Y, type='l', yaxs='i', ylim=yl, ...)
+    } else {
+        lines(X, Y, type='l', ...)
+    }
+        shade <- function(L,R, m,s, co){
+            X <- seq(L,R, by=s*8/max(60,shadeDensity))
+            Y <- dnorm(X, mean=m, sd=s)
+            for(i in seq_along(X)) segments(X[i], 0, X[i], Y[i], col=co)
+        }
+    if(!is.na(LEFT)) shade(L=-m-4*s, R=LEFT, m, s, co)
+    if(!is.na(RIGHT)) shade(L=RIGHT, R=m+4*s, m, s, co)
+    if(!is.na(BETWEEN[1])) shade(L=BETWEEN[1], R=BETWEEN[2], m, s, co)
+    lines(X, Y, ...)
+}
+## -------- ##
+##          ##
+## -------- ##
+shadetDis <- function(df, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='red', shadeDensity=60, add=FALSE, yl=NA, ...){
+    X <- seq(-4, 4, length=500)
+    Y <- dt(X, df=df)
+        if(is.na(yl[1])) yl <- c(0,max(Y)*1.05)
+    if(!add){
+    plot(X, Y, type='l', yaxs='i', ylim=yl, ...)
+    } else {
+        lines(X, Y, type='l', ...)
+    }
+        shade <- function(L,R, df, co){
+            X <- seq(L,R, by=8/max(60,shadeDensity))
+            Y <- dt(X, df=df)
+            for(i in seq_along(X)) segments(X[i], 0, X[i], Y[i], col=co)
+        }
+    if(!is.na(LEFT)) shade(L=-4, R=LEFT, df, co)
+    if(!is.na(RIGHT)) shade(L=RIGHT, R=4, df, co)
+    if(!is.na(BETWEEN[1])) shade(L=BETWEEN[1], R=BETWEEN[2], df, co)
+    lines(X,Y, ...)
+}
+## -------- ##
+##          ##
+## -------- ##
+TplusT <- function(p){
+    pUp <- dbinom(0,3,p) + dbinom(1,3,p)*dbinom(0,3,p)
+    pStay <- dbinom(1,3,p) * dbinom(1,3,p)
+    pDown <- sum(dbinom(2:3,3,p)) + dbinom(1,3,p)*sum(dbinom(2:3,3,p))
+    c(pUp, pStay, pDown)
+}
+## -------- ##
+##          ##
+## -------- ##
+OneSampleNormalSs <- function(d0, d1, sig, alp, bet) (-qnorm(alp)-qnorm(bet))^2 * (sig^2) / ((d1-d0)^2)
+## -------- ##
+##          ##
+## -------- ##
+###################################
+###################################
+## Converting surival parameters ##
+###################################
+###################################
+## -------- ##
+##          ##
+## -------- ##
+ps2hr <- function(Prop, Time){
+    ## Conversion from proportion surviving (until T) to hazard rate ##
+    ## Prop = S(T)
+    ## h = -ln(S(T))/T
+    -log(Prop)/Time
+}
+ms2hr <- function(MS){
+    ## Conversion from median survival to hazard rate ##
+    ps2hr(0.50, MS)
+}
+hr2ms <- function(hr){
+    ## Conversion from hazard rate to median survival ##
+    ## -log(0.50)/hr
+    log(2)/hr
+}
+ps2ms <- function(Prop, Time){
+    ## Conversion from proportion surviving (until Time) to median survival ##
+    hr2ms(ps2hr(Prop, Time))
+}
+ms2ps <- function(MS, Time){
+    ## Conversion from median survival to proportion surviving (until Time) ##
+    hr <- ms2hr(MS)
+    1/exp(hr*Time)
+}
+
+hr2ps <- function(hr, Time){
+    ## Conversion from hazard rate to proportion surviving (until Time) ##
+    1/exp(hr*Time)
+}
+## -------- ##
+##          ##
+## -------- ##
+## Conversion of sd and quartiles assuming normal
+qr2sd <- function(med, qr, LOG=FALSE){
+    ## Given median and quartiles, find mean and sd.
+    ## log transform if LOG=TRUE.
+    mq <- as.numeric(c(qr[1],med,qr[2]))
+    sd13 <- abs(mq[c(1,3)]-mq[2])/qnorm(0.75)
+        # out <- c(sd1=sd13[1], sd3=sd13[2], sd=mean(sd13))
+        out <- c(sd=mean(sd13))
+    if(LOG){
+        Lmq <- log(mq)
+        sd13 <- abs(Lmq[c(1,3)]-Lmq[2])/qnorm(0.75)
+        v <- mean(sd13^2)
+        m <- Lmq[2]
+        vL <- exp(2*m+v)*(exp(v)-1) ## Something is wrong. Check back
+        out <- c(sd=sqrt(vL))
+        out <- 'Something is wrong with my code. Fix it.'
+    }
+    out
+}
+## -------- ##
+##          ##
+## -------- ##
+qr2sd.sim <- function(med, qr, B=1000){
+    ## Fit an exponential distribution.
+    lambda.med <- log(2)/med
+    lambda.qua <- -log(1-c(0.25,0.75)) / qr
+    lambda <- mean(c(lambda.med,lambda.qua))
+    rexp(B, lambda)
+}
+## -------- ##
+##          ##
+## -------- ##
+myKindaDay <- function(dat){
+    # dat is a regular R date format 'YYYY-mm-dd'
+    afd <- function(x,fmt) as.numeric(format.Date(x,format=fmt))
+    y <- afd(dat, fmt='%Y')
+    m <- afd(dat, fmt='%m')
+    d <- afd(dat, fmt='%d')
+    paste(y,m,d, sep='/')
+}
+## -------- ##
+##          ##
+## -------- ##
+oneZpower<- function(n,d,sig){
+    # Power of one sample z test
+    z <- abs( d/sqrt(sig/n) )
+    1-pnorm(z)
+}
+## -------- ##
+##          ##
+## -------- ##
+kn <- function(x){
+    out <- knit(x)
+    system(paste('pdflatex', out))
+}
+## -------- ##
+##          ##
+## -------- ##
+logMain <- function(mn, mx, base){
+    lg <- seq(floor(log(mn, base)), ceiling(log(mx, base)))
+    or <- base^lg
+    data.frame(lg,or,la=rep('',length(lg)))
+}
+## -------- ##
+##          ##
+## -------- ##
+logBetween <- function(mn, mx, base){
+    # starting point is 10^exponent
+    lo <- c(floor(log(mn, base)), ceiling(log(mx, base)))
+    sp <- seq(min(lo), max(lo), by=1)
+        bs <- as.list(base^sp)
+        or <- unlist(lapply(bs, function(x) cumsum(rep(x,9))[-1]))
+        lg <- log(or, base)
+        data.frame(lg,or,la=rep('',length(lg)))
+}
+## -------- ##
+##          ##
+## -------- ##
 oneKlap <- function(laps, lapDist, runKeeper=TRUE){
     ## lapDist in meter. If 300m, put 300.
     ## Vandy's inside track is 300m lap.
@@ -195,7 +431,9 @@ oneKlap <- function(laps, lapDist, runKeeper=TRUE){
         }
         out
 }
-#################
+## -------- ##
+##          ##
+## -------- ##
 FormatSum <- function(sumReverse, round.proportion=0, round.numeric=1, saveCSV=FALSE, csvFileName=''){
     ## Version 1.1 5/4/2015
     ## Version 1.2 6/23/2017
@@ -288,222 +526,4 @@ FormatSum <- function(sumReverse, round.proportion=0, round.numeric=1, saveCSV=F
         cat('File name:', csvFileName, '\n')
     }
     if(!saveCSV) return(tad)
-}
-
-#################
-BinPower <- function(n, p0, p1, alp=0.05, r=TRUE){
-    # one sample Binomial test.
-    # one-sided test
-
-    if(p0 < p1){
-    Xcr <- qbinom(1-alp, n, p0)+1
-    # Reject if X is Xcr or larger.
-    typeI <- sum( dbinom(Xcr:n, n, p0) )
-    Power <- sum( dbinom(Xcr:n, n, p1) )
-    }
-    if(p0 > p1){
-    Xcr <- qbinom(alp, n, p0)-1
-    # Reject if X is Xcr or smaller.
-    typeI <- sum( dbinom(0:Xcr, n, p0) )
-    Power <- sum( dbinom(0:Xcr, n, p1) )
-    }
-    if(r){
-        typeI <- round(typeI, 4)
-        Power <- round(Power, 4)
-    }
-    data.frame(n, p0, p1, alp, Xcr, typeI, Power)
-    }
-
-# BinPower(n=20, p0=0.60, p1=0.40, alp=0.05)
-
-#################
-BetaMV <- function(a,b){
-    ## Compute, mean, variance, mode of a Beta distribution.
-        s <- a + b
-    me <- a/s
-    va <- (a*b) / (s^2*(s+1))
-        ss <- sqrt(va)
-    mo <- (a-1) / (a-1+b-1)
-        if( any(c(a,b) <= 1) ) mo <- NA
-    data.frame(a=a,b=b, mean=me, var=va, sd=ss, mode=mo)
-}
-
-#################
-BetaParameters <- function(m,v, PLOT=FALSE){
-    ## Solving for alpha and beta in BETA distribition given mean and variance.
-    a <- m^2*(1-m)/v - m
-    b <- (1-m)*(m*(1-m)/v-1)
-        if(PLOT) plotBetaDis(a,b)
-    c(a,b)
-}
-
-#################
-plotBetaDis <- function(a,b, add=FALSE, ...){
-  # Plot Beta(a,b) pdf.
-  p <- seq(0,1, length=1000)
-  q <- dbeta(p, a,b)
-  if(!add) plot(p,q, type='l', ylab='Density', yaxt='n', ...)
-  if( add) lines(p,q, ...)
-}
-
-#################
-BetaCI <- function(a,b, x,n, p){
-  ## 100*p % credible interval and median from Beta(a,b)
-  pp <- (1-p)/2
-  lb <- qbeta(pp, a+x,b+n-x)
-  ub <- qbeta(1-pp, a+x,b+n-x)
-  med <- qbeta(0.5, a+x, b+n-x)
-  data.frame(prior.a=a, prior.b=b, x=x, n=n, pr=100*p, lb, med, ub)
-}
-
-if(FALSE){
-## Suppose we use Beta(1,1) as prior.
-## N=25, X=15
-x <- 15
-n <- 25
-x <- c(10:20)
-BetaCI(a=1, b=1, x=10:20, n=25, p=0.90)
-}
-
-#################
-marginTab <- function(tab){
-    colS <- colSums(tab)
-    rowS <- rowSums(tab)
-    gran <- sum(tab)
-        Total <- c(rowS,gran)
-        rbind(cbind(tab, colS), Total)
-        }
-
-#################
-shadeNormalDis <- function(m,s, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='red', shadeDensity=60, add=FALSE, yl=NA, ...){
-    X <- seq(m-4*s, m+4*s, length=500)
-    Y <- dnorm(X, mean=m, sd=s)
-        if(is.na(yl[1])) yl <- c(0,max(Y)*1.05)
-    if(!add){
-    plot(X, Y, type='l', yaxs='i', ylim=yl, ...)
-    } else {
-        lines(X, Y, type='l', ...)
-    }
-        shade <- function(L,R, m,s, co){
-            X <- seq(L,R, by=s*8/max(60,shadeDensity))
-            Y <- dnorm(X, mean=m, sd=s)
-            for(i in seq_along(X)) segments(X[i], 0, X[i], Y[i], col=co)
-        }
-    if(!is.na(LEFT)) shade(L=-m-4*s, R=LEFT, m, s, co)
-    if(!is.na(RIGHT)) shade(L=RIGHT, R=m+4*s, m, s, co)
-    if(!is.na(BETWEEN[1])) shade(L=BETWEEN[1], R=BETWEEN[2], m, s, co)
-    lines(X, Y, ...)
-}
-
-#################
-shadetDis <- function(df, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='red', shadeDensity=60, add=FALSE, yl=NA, ...){
-    X <- seq(-4, 4, length=500)
-    Y <- dt(X, df=df)
-        if(is.na(yl[1])) yl <- c(0,max(Y)*1.05)
-    if(!add){
-    plot(X, Y, type='l', yaxs='i', ylim=yl, ...)
-    } else {
-        lines(X, Y, type='l', ...)
-    }
-        shade <- function(L,R, df, co){
-            X <- seq(L,R, by=8/max(60,shadeDensity))
-            Y <- dt(X, df=df)
-            for(i in seq_along(X)) segments(X[i], 0, X[i], Y[i], col=co)
-        }
-    if(!is.na(LEFT)) shade(L=-4, R=LEFT, df, co)
-    if(!is.na(RIGHT)) shade(L=RIGHT, R=4, df, co)
-    if(!is.na(BETWEEN[1])) shade(L=BETWEEN[1], R=BETWEEN[2], df, co)
-    lines(X,Y, ...)
-}
-
-####################
-TplusT <- function(p){
-    pUp <- dbinom(0,3,p) + dbinom(1,3,p)*dbinom(0,3,p)
-    pStay <- dbinom(1,3,p) * dbinom(1,3,p)
-    pDown <- sum(dbinom(2:3,3,p)) + dbinom(1,3,p)*sum(dbinom(2:3,3,p))
-    c(pUp, pStay, pDown)
-    }
-
-####################
-OneSampleNormalSs <- function(d0, d1, sig, alp, bet) (-qnorm(alp)-qnorm(bet))^2 * (sig^2) / ((d1-d0)^2)
-####################
-
-###################################
-###################################
-## Converting surival parameters ##
-###################################
-###################################
-
-## Hazard Rate
-ps2hr <- function(Prop, Time){
-    ## Conversion from proportion surviving (until T) to hazard rate ##
-    ## Prop = S(T)
-    ## h = -ln(S(T))/T
-    -log(Prop)/Time
-}
-ms2hr <- function(MS){
-    ## Conversion from median survival to hazard rate ##
-    ps2hr(0.50, MS)
-}
-hr2ms <- function(hr){
-    ## Conversion from hazard rate to median survival ##
-    ## -log(0.50)/hr
-    log(2)/hr
-}
-ps2ms <- function(Prop, Time){
-    ## Conversion from proportion surviving (until Time) to median survival ##
-    hr2ms(ps2hr(Prop, Time))
-}
-ms2ps <- function(MS, Time){
-    ## Conversion from median survival to proportion surviving (until Time) ##
-    hr <- ms2hr(MS)
-    1/exp(hr*Time)
-}
-
-hr2ps <- function(hr, Time){
-    ## Conversion from hazard rate to proportion surviving (until Time) ##
-    1/exp(hr*Time)
-}
-
-## Conversion of sd and quartiles assuming normal
-qr2sd <- function(med, qr, LOG=FALSE){
-    ## Given median and quartiles, find mean and sd.
-    ## log transform if LOG=TRUE.
-    mq <- as.numeric(c(qr[1],med,qr[2]))
-    sd13 <- abs(mq[c(1,3)]-mq[2])/qnorm(0.75)
-        # out <- c(sd1=sd13[1], sd3=sd13[2], sd=mean(sd13))
-        out <- c(sd=mean(sd13))
-    if(LOG){
-        Lmq <- log(mq)
-        sd13 <- abs(Lmq[c(1,3)]-Lmq[2])/qnorm(0.75)
-        v <- mean(sd13^2)
-        m <- Lmq[2]
-        vL <- exp(2*m+v)*(exp(v)-1) ## Something is wrong. Check back
-        out <- c(sd=sqrt(vL))
-        out <- 'Something is wrong with my code. Fix it.'
-    }
-    out
-}
-
-qr2sd.sim <- function(med, qr, B=1000){
-    ## Fit an exponential distribution.
-    lambda.med <- log(2)/med
-    lambda.qua <- -log(1-c(0.25,0.75)) / qr
-    lambda <- mean(c(lambda.med,lambda.qua))
-    rexp(B, lambda)
-}
-
-myKindaDay <- function(dat){
-    # dat is a regular R date format 'YYYY-mm-dd'
-    afd <- function(x,fmt) as.numeric(format.Date(x,format=fmt))
-    y <- afd(dat, fmt='%Y')
-    m <- afd(dat, fmt='%m')
-    d <- afd(dat, fmt='%d')
-    paste(y,m,d, sep='/')
-}
-
-oneZpower<- function(n,d,sig){
-    # Power of one sample z test
-    z <- abs( d/sqrt(sig/n) )
-    1-pnorm(z)
 }

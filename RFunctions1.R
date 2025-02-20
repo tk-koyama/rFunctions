@@ -736,3 +736,52 @@ show.colors <- function(){
    text((1:x)-.5, rep(-.5,x), y*(0:(x-1)), cex=1.2-.022*x)
    title('col=colors()[n]')
 }
+##############
+## propPlot ##
+##############
+propPlot <- function(x, TrueFalse, howManyGroups=4, cutPoints=NULL, dig.x=1, ...){
+    # This plot shows the proportion of 'TRUE' in bins with equal n (unless cutPoints are specified).
+
+    # ... is passed to plot() function.
+
+    ownCutPoints <- !is.null(cutPoints[1])
+
+    d <- data.frame(x, TrueFalse)
+    d <- d[ complete.cases(d), ]
+        x <- d$x
+        TrueFalse <- d$TrueFalse
+
+    if(!ownCutPoints){
+        cox <- quantile(x, seq(0,1, by=1/howManyGroups))
+        co <- as.numeric(cox)
+        co[1] <- co[1] - 1
+        xc <- cut(x,co)
+        co[1] <- co[1] + 1
+    }
+    if(ownCutPoints){
+        co <- sort(cutPoints)
+            if(min(x)<co[1]) co <- c(min(x),co)
+            if(max(x)>rev(co)[1]) co <- c(co,max(x))
+    }
+
+    xc <- cut(x,co)
+    tab <- table( TrueFalse , xc)
+
+    plot(range(co), c(0,1), type='n', xaxt='n', yaxs='i', ...)
+    abline(h=(1:4)*0.2, col=grey(0.95))
+        cot <- formatC(co, format='f', digits=dig.x)
+    axis(1, at=co, label=cot)
+    la <- paste(round(100*seq(0,1, by=1/howManyGroups)), '%', sep='')
+    if(!ownCutPoints) axis(1, at=co, label=la, line=1, tick=FALSE)
+
+    midPoints <- colMeans(rbind( rev(rev(co)[-1]), co[-1]))
+    width  <- abs(midPoints-co[-1])
+        p <- as.numeric(prop.table(tab,2)[2,])
+    for(i in 1:length(midPoints)){
+        rect(midPoints[i]-width[i]/1.3,0,midPoints[i]+width[i]/1.3,p[i], col='royalblue', border='lightblue')
+        text(midPoints[i], p[i], paste(tab[2,i], ' / ', colSums(tab)[i]), pos=3, cex=0.7 )
+    }
+    box(bty='L')
+    tab
+}
+
