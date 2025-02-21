@@ -1,6 +1,44 @@
-## -------- ##
-##          ##
-## -------- ##
+## ------------------ ##
+##                    ##
+## Summary statistics ##
+##                    ##
+## ------------------ ##
+groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
+    # Summarizes a numeric vector, optionally by groups.  
+    # Input: Numeric vector `v` and optional grouping variable `g` (factor or character).  
+    # Output: Summary statistics for each group, including NA as a separate group.  
+    if (length(g) > 0) {
+        g <- addNA(g)  # Automatically includes NA as a factor level
+    }
+    vg <- if (length(g) > 0) split(v, f=g) else list(Overall=v)  # Split into groups
+    
+    summaryNA <- function(x) {
+        x <- x[!is.na(x)]  # Ensure NAs in v are removed
+        c(summary(x)[1:6], sum(x), length(x), sd(x), sd(x)/sqrt(length(x)))  # Summary stats
+    }
+    
+    # Compute summaries
+    sm <- as.data.frame(t(sapply(vg, summaryNA)))
+    
+    # Add combined row if needed
+    comb <- if (Combined & length(g) > 0) summaryNA(v) else NULL
+    if (!is.null(comb)) sm <- rbind(sm, Combined=comb)
+    
+    # Rename columns
+    colnames(sm) <- c("Min", "Q1", "Med", "Mean", "Q3", "Max", "Total", "N", "SD", "SE")
+    
+    # Allow user-selected summary stats
+    summary_stats <- c("N", "Min", "Q1", "Med", "Q3", "Max", "Mean", "SD", "SE")
+    if (!is.null(select_stats)) summary_stats <- intersect(summary_stats, select_stats)
+    sm <- sm[, summary_stats, drop = FALSE]
+    
+    return(sm)
+}
+## ----------------- ##
+##                   ##
+## Clean REDCap data ##
+##                   ##
+## ----------------- ##
 editRedCapData <- function(d, changeNames=TRUE){
     ## Do d <- data ; rm(data) first.
     ## Don't forget the .r file that redcap creates; it has rm(list=ls()) in it!
@@ -18,151 +56,104 @@ editRedCapData <- function(d, changeNames=TRUE){
         if(changeNames){ names(d) <- capitalize(gsub('_+', '.', names(d))) }
     d
 }
+## --------------- ##
+##                 ##
+## Running related ##
+##                 ##
+## --------------- ##
+multTime <- function(lap, multiplier, inSeconds=FALSE) {
+    # Multiplies a time value by a given factor.  
+    # Input: "HH:MM:SS" or "MM:SS" as a string, or MM.SS as a numeric.  
+    # Output: Scaled time in "HH:MM:SS" or "MM:SS" format.
+    if (is.character(lap)) {
+        time_parts <- as.numeric(unlist(strsplit(lap, ":")))
+        Sec <- as.numeric(substring(time_parts[length(time_parts)], 1, 2))  # Extract first two digits
+        Min <- time_parts[length(time_parts) - 1]
+        Hr <- if (length(time_parts) == 3) time_parts[1] else 0
+    } else {
+        Hr <- 0  # Ensure Hr is always initialized
+        Min <- floor(lap)  # Extract minutes
+        Sec <- as.integer(100 * round(lap - Min, 10))  # Prevent floating-point errors
+    }
+
+    out <- round((Hr * 3600 + Min * 60 + Sec) * multiplier)  # Scale & round total seconds
+
+    if(!inSeconds){
+        Hr  <- out %/% 3600  # Extract hours
+        Min <- (out %% 3600) %/% 60  # Extract minutes
+        Sec <- out %% 60  # Extract seconds
+        # Ensure two-digit seconds formatting
+        Sec <- sprintf("%02d", Sec)
+        Min <- sprintf("%02d", Min)
+        out <- if (Hr > 0) paste(Hr, Min, Sec, sep=":") else paste(Min, Sec, sep=":")
+    }
+    return(out)
+}
 ## -------- ##
 ##          ##
 ## -------- ##
-groupSum <- function(v,g=NULL, Combined=TRUE, Test=FALSE, np=FALSE, MissingAsGroup=FALSE, r=2){
-    vg <- list(v)
-    if(Test) Combined <- TRUE
-    if(length(g) > 0) vg <- split(v, f=g)
-        summaryNA <- function(x){
-            x <- x[ !is.na(x) ]
-            sx <- summary(x)[1:6]
-            tot <- sum(x)
-            L <- length(x)
-            s <- sd(x)
-            se <- s/sqrt(L)
-            c(sx,tot,L,s,se)
-        }
-    sm <- data.frame(do.call('rbind', lapply(vg, summaryNA)))
-        if(Combined & length(g)>0){
-            comb <- summaryNA(v)
-            sm <- rbind(sm,comb)
-            row.names(sm)[nrow(sm)] <- 'Combined'
-        }
-    names(sm) <- c('Min','Q1','Med','Mean','Q3','Max','Total','N','SD','SE')
-    sm <- subset(sm, select=c(N,Min,Q1,Med,Q3,Max,Mean,SD,SE))
-    out <- round(data.frame(sm), r)
-    pv <- NA
-    if(Test){
-        if(length(vg)==2){
-            if(!np) pv <- c(NA,NA, t.test(vg[[1]], vg[[2]])$p.value)
-            if( np) pv <- suppressWarnings( c(NA,NA, wilcox.test(vg[[1]], vg[[2]])$p.value) )
-        out <- cbind(out, pv)
+addTime <- function(times, inSeconds=FALSE) {
+    # Adds multiple time values together.  
+    # Input: Vector of times in "HH:MM:SS" or "MM:SS" as strings, or MM.SS as numerics.  
+    # Output: Summed time in "HH:MM:SS" or "MM:SS" format.  
+    totalSec <- 0  # Initialize total seconds
+
+    for (time in times) {
+        totalSec <- totalSec + as.numeric(multTime(time, multiplier=1, inSeconds=TRUE)) 
+    }
+    M <- totalSec %/% 60
+    S <- totalSec - 60* M
+    return(multTime(paste(M,S,sep=':'),1,inSeconds)) # Convert back to formatted time
+}
+## --------------------------- ##
+##                             ##
+## Super simple power analysis ##
+##                             ##
+## --------------------------- ##
+BinPower <- function(n, p0, p1, alp=0.05, two.sided=FALSE) {
+    # Computes Type I error and power for a one-sample Binomial test.  
+    # Input: Sample size "n", null "p0", alternative "p1", significance level "alp", and "two.sided" option.  
+    # Output: Critical values ("Xcr_low", "Xcr_high"), Type I error, and statistical power.  
+    # "Xcr_low" and "Xcr_high" are in the rejection region.
+
+    Xcr_low <- Xcr_high <- NA
+    if(two.sided){
+        # Find Xcr_high such that P(X >= Xcr_high) >= alp/2
+        Xcr_high <- qbinom(1 - alp/2, n, p0) + 1
+        # Find Xcr_low such that P(X <= Xcr_low) <= alp/2
+        Xcr_low <- qbinom(alp/2, n, p0) - 1
+
+        rejection_range <- c(0:Xcr_low, Xcr_high:n)
+    } else {
+        # One-sided test
+        if(p0 <= p1) {
+            # Upper-tail test
+            Xcr_high <- qbinom(1 - alp, n, p0) + 1
+            rejection_range <- Xcr_high:n
         } else {
-        warning("I don't want to do a test with group size != 2.")
+            # Lower-tail test
+            Xcr_low <- qbinom(alp, n, p0) - 1
+            rejection_range <- 0:Xcr_low
         }
     }
-    round(data.frame(out), r)
+    typeI <- sum(dbinom(rejection_range, n, p0))  # Type I error
+    Power <- sum(dbinom(rejection_range, n, p1))  # Statistical power
+
+    return(data.frame(n=n, p0=p0, p1=p1, alp=alp, two.sided=two.sided, 
+                      Xcr_low=Xcr_low, Xcr_high=Xcr_high, typeI=typeI, Power=Power))
 }
-## -------- ##
-##          ##
-## -------- ##
-propPlot <- function(x, TrueFalse, howManyGroups=4, cutPoints=NULL){
-    # x is continuous.
-    # TrueFalse
-    
-    if(is.null(cutPoints[1])) usr <- FALSE
-
-    TrueFalse <- TrueFalse[!is.na(x)]
-    x <- x[!is.na(x)]
-
-    if(is.null(cutPoints[1])){
-        cox <- quantile(x, seq(0,1, by=1/howManyGroups))
-        co <- as.numeric(cox)
-        co[1] <- co[1] - 1
-        xc <- cut(x,co)
-        co[1] <- co[1] + 1
-    }
-    if(!is.null(cutPoints[1])) co <- cutPoints
-        xc <- cut(x,co)
-
-    tab <- table( TrueFalse , xc)
-
-    plot(range(x), c(0,1), xlab='', ylab='', type='n', xaxt='n', yaxs='i')
-        # segments( min(x),0,min(x),1, col=grey(.9))
-        # segments( max(x),0,max(x),1, col=grey(.9))
-        # for(i in 1:(length(co)-2)) segments(co[i],0,co[i],1, col=grey(.9))
-    abline(h=(1:4)*0.2, col=grey(0.95))
-        cot <- formatC(co, format='f', digits=2)
-    axis(1, at=co, label=cot)
-    if(is.null(cutPoints[1])) axis(1, at=co, label=names(cox), line=1, tick=FALSE)
-
-    midPoints <- colMeans(rbind( rev(rev(co)[-1]), co[-1]))
-    width  <- abs(midPoints-co[-1])
-        p <- as.numeric(prop.table(tab,2)[2,])
-    for(i in 1:length(midPoints)){
-        rect(midPoints[i]-width[i]/1.3,0,midPoints[i]+width[i]/1.3,p[i], col='royalblue', border='lightblue')
-        text(midPoints[i], p[i], paste(tab[2,i], ' / ', colSums(tab)[i]), pos=3, cex=0.7 )
-    }
-    box(bty='L')
-    tab
-}
-## -------- ##
-##          ##
-## -------- ##
-multTime <- function(lap, multiplier, fmt=TRUE){ ## xxx
-    # lap is in 'Min.Sec' format. "8.47" means 8 minutes 47 seconds.
-    Min <- floor(lap) ## interger portion.
-    Sec <- (lap - Min) * 100
-        m <- Min + Sec/60 ## in decimal MINUTES.
-    MM <- m * multiplier
-        MIN <- floor(round(MM*100)/100)
-        SEC <- as.integer(round( 60*(MM - MIN)))
-        out <- MIN+round(SEC/100,2)
-        if(fmt) out <- paste(MIN, formatC(SEC, format='f', digit=0, width=2, flag=0), sep=':')
-    out
-}
-## -------- ##
-##          ##
-## -------- ##
-addTime <- function(laps, fmt=TRUE){
-    # laps is in 'Min.Sec' format. "8.47" means 8 minutes 47 seconds.
-    min <- floor(laps)
-    sec <- (laps-min) * 100
-        MIN <- sum(min)
-        SEC <- sum(sec)
-        secM <- SEC %/% 60
-        secS <- round(SEC %% 60)
-    multTime(MIN+secM+secS/100, 1, fmt)
-}
-## -------- ##
-##          ##
-## -------- ##
-BinPower <- function(n, p0, p1, alp=0.05, r=TRUE){
-    # one sample Binomial test.
-    # one-sided test
-
-    if(p0 < p1){
-    Xcr <- qbinom(1-alp, n, p0)+1
-    # Reject if X is Xcr or larger.
-    typeI <- sum( dbinom(Xcr:n, n, p0) )
-    Power <- sum( dbinom(Xcr:n, n, p1) )
-    }
-    if(p0 > p1){
-    Xcr <- qbinom(alp, n, p0)-1
-    # Reject if X is Xcr or smaller.
-    typeI <- sum( dbinom(0:Xcr, n, p0) )
-    Power <- sum( dbinom(0:Xcr, n, p1) )
-    }
-    if(r){
-        typeI <- round(typeI, 4)
-        Power <- round(Power, 4)
-    }
-    data.frame(n, p0, p1, alp, Xcr, typeI, Power)
-    }
-## -------- ##
-##          ##
-## -------- ##
-BetaMV <- function(a,b){
-    ## Compute, mean, variance, mode of a Beta distribution.
+## ----------------- ##
+##                   ##
+## Beta distribution ##
+##                   ##
+## ----------------- ##
+BetaMS <- function(a,b){
+    ## Compute, mean and variance a Beta distribution.
         s <- a + b
     me <- a/s
     va <- (a*b) / (s^2*(s+1))
         ss <- sqrt(va)
-    mo <- (a-1) / (a-1+b-1)
-        if( any(c(a,b) <= 1) ) mo <- NA
-    data.frame(a=a,b=b, mean=me, var=va, sd=ss, mode=mo)
+    data.frame(a=a,b=b, mean=me, var=va, sd=ss)
 }
 ## -------- ##
 ##          ##
@@ -187,343 +178,142 @@ plotBetaDis <- function(a,b, add=FALSE, ...){
 ## -------- ##
 ##          ##
 ## -------- ##
-BetaCI <- function(a,b, x,n, p){
-  ## 100*p % credible interval and median from Beta(a,b).
-  ## and data = x/n.
-  pp <- (1-p)/2
-  lb <- qbeta(pp, a+x,b+n-x)
-  ub <- qbeta(1-pp, a+x,b+n-x)
-  med <- qbeta(0.5, a+x, b+n-x)
-  data.frame(prior.a=a, prior.b=b, x=x, n=n, pr=100*p, lb, med, ub)
+BetaCI <- function(a, b, x, n, p) {
+  ## 100*p % credible interval and median from Beta(a,b) and data = x/n.
+    if (a <= 0 | b <= 0) stop("Both 'a' and 'b' must be greater than 0.")
+    if (x < 0 | x > n) stop("'x' must be between 0 and 'n'.")
+    if (p <= 0 | p >= 1) stop("'p' must be between 0 and 1.")
+
+    pp <- (1 - p) / 2
+    lb <- qbeta(pp, a+x, b+n-x)
+    ub <- qbeta(1-pp, a+x, b+n-x)
+    med <- qbeta(0.5, a+x, b+n-x)
+
+    data.frame(
+        prior_a=a, prior_b=b, 
+        successes=x, trials=n, 
+        credibility_level=paste0(100 * p, "%"), 
+        lower_bound=lb, median=med, upper_bound=ub)
 }
-## -------- ##
-##          ##
-## -------- ##
-marginTab <- function(tab){
-    colS <- colSums(tab)
-    rowS <- rowSums(tab)
-    gran <- sum(tab)
-        Total <- c(rowS,gran)
-        rbind(cbind(tab, colS), Total)
-}
-## -------- ##
-##          ##
-## -------- ##
-shadeNormalDis <- function(m,s, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='red', shadeDensity=60, add=FALSE, yl=NA, ...){
-    X <- seq(m-4*s, m+4*s, length=500)
-    Y <- dnorm(X, mean=m, sd=s)
-        if(is.na(yl[1])) yl <- c(0,max(Y)*1.05)
-    if(!add){
-    plot(X, Y, type='l', yaxs='i', ylim=yl, ...)
+## -------------------------- ##
+##                            ##
+## Draw Normal/t distribution ##
+##                            ##
+## -------------------------- ##
+shadeDist <- function(df=NA, mean=NA, sd=NA, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='royalblue', 
+                      shadeDensity=60, add=FALSE, yl=NA, xlim=NA, ...){
+    # Plot and shade regions under t or Normal distribution.
+    # Determine whether to use t-distribution or normal distribution
+    if (!is.na(df) && (is.na(mean) || is.na(sd))) {
+        # Use t-distribution
+        dist_type <- "t"
+        density_fun <- function(x) dt(x, df=df)
+        quantile_fun <- function(p) qt(p, df=df)
+    } else if (!is.na(mean) && !is.na(sd) && is.na(df)) {
+        # Use normal distribution
+        dist_type <- "normal"
+        density_fun <- function(x) dnorm(x, mean=mean, sd=sd)
+        quantile_fun <- function(p) qnorm(p, mean=mean, sd=sd)
     } else {
-        lines(X, Y, type='l', ...)
+        stop("Specify either df (for t-distribution) or mean and sd (for normal distribution), but not both.")
     }
-        shade <- function(L,R, m,s, co){
-            X <- seq(L,R, by=s*8/max(60,shadeDensity))
-            Y <- dnorm(X, mean=m, sd=s)
-            for(i in seq_along(X)) segments(X[i], 0, X[i], Y[i], col=co)
+
+    # Set dynamic x-axis limits
+    if (is.na(xlim[1])) xlim <- quantile_fun(c(0.001, 0.999))
+    X <- seq(xlim[1], xlim[2], length=500)
+    Y <- density_fun(X)
+
+    # Set y-axis limits if not provided
+    if (is.na(yl[1])) yl <- c(0, max(Y) * 1.05)
+
+    # Plot the distribution curve
+    if (!add) {
+        plot(X, Y, type='l', yaxs='i', ylim=yl, xlim=xlim, ...)
+    } else {
+        lines(X, Y, ...)
+    }
+
+    # Function to shade regions under the curve
+    shade_region <- function(L, R, co) {
+        if (L < R) {
+            X_shade <- seq(L, R, length.out=shadeDensity)
+            Y_shade <- density_fun(X_shade)
+            polygon(c(X_shade, rev(X_shade)), c(Y_shade, rep(0, length(X_shade))), col=adjustcolor(co, alpha.f=0.5), border=NA)
         }
-    if(!is.na(LEFT)) shade(L=-m-4*s, R=LEFT, m, s, co)
-    if(!is.na(RIGHT)) shade(L=RIGHT, R=m+4*s, m, s, co)
-    if(!is.na(BETWEEN[1])) shade(L=BETWEEN[1], R=BETWEEN[2], m, s, co)
+    }
+
+    # Apply shading conditions
+    if (!is.na(LEFT)) shade_region(L=xlim[1], R=LEFT, co)
+    if (!is.na(RIGHT)) shade_region(L=RIGHT, R=xlim[2], co)
+    if (!is.na(BETWEEN[1]) && length(BETWEEN) == 2) shade_region(L=BETWEEN[1], R=BETWEEN[2], co)
+
+    # Redraw the curve on top for clarity
     lines(X, Y, ...)
 }
-## -------- ##
-##          ##
-## -------- ##
-shadetDis <- function(df, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='red', shadeDensity=60, add=FALSE, yl=NA, ...){
-    X <- seq(-4, 4, length=500)
-    Y <- dt(X, df=df)
-        if(is.na(yl[1])) yl <- c(0,max(Y)*1.05)
-    if(!add){
-    plot(X, Y, type='l', yaxs='i', ylim=yl, ...)
-    } else {
-        lines(X, Y, type='l', ...)
-    }
-        shade <- function(L,R, df, co){
-            X <- seq(L,R, by=8/max(60,shadeDensity))
-            Y <- dt(X, df=df)
-            for(i in seq_along(X)) segments(X[i], 0, X[i], Y[i], col=co)
-        }
-    if(!is.na(LEFT)) shade(L=-4, R=LEFT, df, co)
-    if(!is.na(RIGHT)) shade(L=RIGHT, R=4, df, co)
-    if(!is.na(BETWEEN[1])) shade(L=BETWEEN[1], R=BETWEEN[2], df, co)
-    lines(X,Y, ...)
-}
-## -------- ##
-##          ##
-## -------- ##
-TplusT <- function(p){
-    pUp <- dbinom(0,3,p) + dbinom(1,3,p)*dbinom(0,3,p)
-    pStay <- dbinom(1,3,p) * dbinom(1,3,p)
-    pDown <- sum(dbinom(2:3,3,p)) + dbinom(1,3,p)*sum(dbinom(2:3,3,p))
-    c(pUp, pStay, pDown)
-}
-## -------- ##
-##          ##
-## -------- ##
-OneSampleNormalSs <- function(d0, d1, sig, alp, bet) (-qnorm(alp)-qnorm(bet))^2 * (sig^2) / ((d1-d0)^2)
-## -------- ##
-##          ##
-## -------- ##
-###################################
-###################################
-## Converting surival parameters ##
-###################################
-###################################
-## -------- ##
-##          ##
-## -------- ##
+## ------------------ ##
+##                    ##
+## surival parameters ##
+##                    ##
+## ------------------ ##
 ps2hr <- function(Prop, Time){
     ## Conversion from proportion surviving (until T) to hazard rate ##
     ## Prop = S(T)
     ## h = -ln(S(T))/T
     -log(Prop)/Time
 }
+## -------- ##
+##          ##
+## -------- ##
 ms2hr <- function(MS){
     ## Conversion from median survival to hazard rate ##
+    ## Requires constant hazard assumption ##
     ps2hr(0.50, MS)
 }
+## -------- ##
+##          ##
+## -------- ##
 hr2ms <- function(hr){
     ## Conversion from hazard rate to median survival ##
     ## -log(0.50)/hr
+    ## Requires constant hazard assumption ##
     log(2)/hr
 }
+## -------- ##
+##          ##
+## -------- ##
 ps2ms <- function(Prop, Time){
     ## Conversion from proportion surviving (until Time) to median survival ##
+    ## Requires constant hazard assumption ##
     hr2ms(ps2hr(Prop, Time))
 }
+## -------- ##
+##          ##
+## -------- ##
 ms2ps <- function(MS, Time){
     ## Conversion from median survival to proportion surviving (until Time) ##
+    ## Requires constant hazard assumption ##
     hr <- ms2hr(MS)
     1/exp(hr*Time)
 }
-
+## -------- ##
+##          ##
+## -------- ##
 hr2ps <- function(hr, Time){
     ## Conversion from hazard rate to proportion surviving (until Time) ##
+    ## Requires constant hazard assumption ##
     1/exp(hr*Time)
 }
-## -------- ##
-##          ##
-## -------- ##
-## Conversion of sd and quartiles assuming normal
-qr2sd <- function(med, qr, LOG=FALSE){
-    ## Given median and quartiles, find mean and sd.
-    ## log transform if LOG=TRUE.
-    mq <- as.numeric(c(qr[1],med,qr[2]))
-    sd13 <- abs(mq[c(1,3)]-mq[2])/qnorm(0.75)
-        # out <- c(sd1=sd13[1], sd3=sd13[2], sd=mean(sd13))
-        out <- c(sd=mean(sd13))
-    if(LOG){
-        Lmq <- log(mq)
-        sd13 <- abs(Lmq[c(1,3)]-Lmq[2])/qnorm(0.75)
-        v <- mean(sd13^2)
-        m <- Lmq[2]
-        vL <- exp(2*m+v)*(exp(v)-1) ## Something is wrong. Check back
-        out <- c(sd=sqrt(vL))
-        out <- 'Something is wrong with my code. Fix it.'
-    }
-    out
-}
-## -------- ##
-##          ##
-## -------- ##
-qr2sd.sim <- function(med, qr, B=1000){
-    ## Fit an exponential distribution.
-    lambda.med <- log(2)/med
-    lambda.qua <- -log(1-c(0.25,0.75)) / qr
-    lambda <- mean(c(lambda.med,lambda.qua))
-    rexp(B, lambda)
-}
-## -------- ##
-##          ##
-## -------- ##
+## ---------------- ##
+##                  ##
+## Have a nice day! ##
+##                  ##
+## ---------------- ##
 myKindaDay <- function(dat){
-    # dat is a regular R date format 'YYYY-mm-dd'
-    afd <- function(x,fmt) as.numeric(format.Date(x,format=fmt))
-    y <- afd(dat, fmt='%Y')
-    m <- afd(dat, fmt='%m')
-    d <- afd(dat, fmt='%d')
-    paste(y,m,d, sep='/')
+    # Format date from 2025-02-25 to 2025/2/25.
+    afd <- function(x, fmt) as.numeric(format(x, format=fmt))  # Convert to numeric to remove zero-padding
+    y <- sapply(dat, afd, fmt='%Y')
+    m <- sapply(dat, afd, fmt='%m')  # Converts "02" to 2, "07" to 7, etc.
+    d <- sapply(dat, afd, fmt='%d')  # Converts "09" to 9, etc.
+    paste(y, m, d, sep='/')
 }
-## -------- ##
-##          ##
-## -------- ##
-oneZpower<- function(n,d,sig){
-    # Power of one sample z test
-    z <- abs( d/sqrt(sig/n) )
-    1-pnorm(z)
-}
-## -------- ##
-##          ##
-## -------- ##
-kn <- function(x){
-    out <- knit(x)
-    system(paste('pdflatex', out))
-}
-## -------- ##
-##          ##
-## -------- ##
-logMain <- function(mn, mx, base){
-    lg <- seq(floor(log(mn, base)), ceiling(log(mx, base)))
-    or <- base^lg
-    data.frame(lg,or,la=rep('',length(lg)))
-}
-## -------- ##
-##          ##
-## -------- ##
-logBetween <- function(mn, mx, base){
-    # starting point is 10^exponent
-    lo <- c(floor(log(mn, base)), ceiling(log(mx, base)))
-    sp <- seq(min(lo), max(lo), by=1)
-        bs <- as.list(base^sp)
-        or <- unlist(lapply(bs, function(x) cumsum(rep(x,9))[-1]))
-        lg <- log(or, base)
-        data.frame(lg,or,la=rep('',length(lg)))
-}
-## -------- ##
-##          ##
-## -------- ##
-oneKlap <- function(laps, lapDist, runKeeper=TRUE){
-    ## lapDist in meter. If 300m, put 300.
-    ## Vandy's inside track is 300m lap.
-    ## lapDist must be a multiple of 50.
 
-    ## "laps" is in min.sec format. 
-    ## if runKeeper, the output will be formated for it.
-
-    int.part <- floor(laps)
-        lapsInSec <- 60*int.part + 100*(laps-int.part)
-    mul <- lapDist / 50
-    every50 <- rep( lapsInSec/mul, each=mul)
-
-        hmkm <- floor(length(every50) / 20) ## 20 * 50m = 1000m
-        hm50 <- hmkm*1000/50
-            remainDist <- 50*(length(every50) - hmkm*1000/50) / 1000
-            remainT <- every50[(hm50+1):length(every50)]
-
-        km <- matrix(every50[1:hm50], nrow=20, byrow=FALSE)
-        kmsss <- round(colSums(km))
-
-            sec2min <- function(s){
-                MIN <- floor(s/60)
-                SEC <- s-60*MIN
-            MIN + SEC/100
-            }
-
-        everyKM <- sec2min(kmsss)
-        remainTime <- sec2min(sum(remainT))
-
-        out <- list(KM=everyKM, Remainkm=remainDist, RemainTime=remainTime)
-
-        if(runKeeper){
-            hmkm <- length(out$KM)
-            rmkm <- out$Remainkm
-            rmkmPerkm <- multTime(out$RemainTime, 1/rmkm, fmt=FALSE)
-                rr <- !is.na(rmkmPerkm)
-                    pc <- out$KM
-                    if(rr) pc <- c(out$KM, rmkmPerkm)
-                    pc <- multTime(pc,1)
-            lap <- data.frame(PACE=pc)
-                v <- 1:nrow(lap)
-            rownames(lap) <- paste(formatC(v,format='f', digit=0, width=2), 'km ')
-        out <- lap
-        }
-        out
-}
-## -------- ##
-##          ##
-## -------- ##
-FormatSum <- function(sumReverse, round.proportion=0, round.numeric=1, saveCSV=FALSE, csvFileName=''){
-    ## Version 1.1 5/4/2015
-    ## Version 1.2 6/23/2017
-            ## round.numeric is not implemented or not working...
-    ## Version 1.3 12/1/2017
-            ## Fixed round.numeric
-    
-    ## sumReverse is summary with method='reverse'.
-    sum.cat <- function(outStats, round.proportion, round.numeric, var.name, pv, group.names){
-        # Categorical
-        # outStats is sumReverse$stats[[i]]
-        o <- outStats
-            nm <- dimnames(outStats)[[2]]
-            l <- length(group.names)
-        if( ncol(outStats) != l){
-            o <- matrix(0, ncol=l, nrow=nrow(outStats))
-            # row.names(o) <- gsub('-', '--', row.names(outStats))
-            for(k in 1:ncol(outStats)){
-                o[, which(group.names == nm[k]) ] <- outStats[,k]
-                }
-                }
-            pt <- prop.table(o, margin=2)
-                pp <- ifelse( any(pt>0.999, na.rm=TRUE), 3, 2)
-                pp <- ifelse( round.proportion==0, pp, pp+1+round.proportion)
-        P <- formatC( 100*c(pt), digits=round.proportion, width=pp, format='f')
-            nn <- max(nchar(c(o)))
-        N <- formatC( c(o), width=nn)
-        o <- matrix(paste(N, ' (', P, '%)', sep=''), nrow=nrow(o))
-            o[, !group.names %in% nm] <- rep('', nrow(o))
-        o <- cbind(var.name, gsub('-', '--', row.names(outStats)), o, pv)
-        if(nrow(o) == 2) o <- o[2,]
-        if(!is.null(nrow(o))){
-            o[,1] <- c( var.name, rep('', nrow(o)-1))
-            o[,ncol(o)] <- c(pv, rep('', nrow(o)-1))
-        }
-        o
-    }
-
-    sum.num <- function(outStats, quant, round.numeric, var.name, pv, group.names){
-        # Numerical
-        # outStats is sumReverse$stats[[i]]
-        # quant is sumReverse$quant
-        o <- outStats
-            l <- length(group.names)
-        if( nrow(outStats) != l){
-            o <- matrix(0, ncol=ncol(outStats), nrow=l)
-                row.names(o) <- group.names
-                for(k in 1:nrow(outStats)){
-                    o[ which(row.names(o) == row.names(outStats)[k]),] <- outStats[k,]
-                    }
-            }
-        med <- formatC( as.numeric( o[, quant==0.5 ]), digits=round.numeric, format='f')#, width=wdt)
-        loq <- formatC( as.numeric( o[, quant==0.25]), digits=round.numeric, format='f')#, width=wdt)
-        upq <- formatC( as.numeric( o[, quant==0.75]), digits=round.numeric, format='f')#, width=wdt)
-        num <- paste(med, ' (', loq, ', ', upq, ')', sep='')
-            num[! row.names(o) %in% row.names(outStats) ] <- ''
-        c(var.name, '', num, pv)
-    }
-
-        args2 <- list(round.proportion, sumReverse$quant)
-        num.dig <- c(round.proportion, round.numeric)
-        group.names <- names(sumReverse$group.freq)
-
-        if(!is.null(sumReverse$testresults)){
-                pv <- sapply(sumReverse$testresults, function(x) x$P)
-            pval <- paste('P=', formatC(pv, format='f', digits=3), sep='')
-            pval[ pv<0.001 ] <- 'P<0.001'
-            } else {
-                pval <- rep(' ', length(sumReverse$stats) )
-            }
-
-    ta <- NULL
-
-    for(i in 1:length(sumReverse$stats)){
-        this.type <- sumReverse$type[i]
-        this.fun <- list(sum.cat, sum.num)[[this.type]]
-            ta0 <- this.fun(sumReverse$stats[[i]], args2[[this.type]], num.dig[this.type], sumReverse$labels[i], pval[i], group.names)
-        ta <- rbind(ta, ta0)
-    }
-
-    ta <- rbind( c('', '', paste('(N=', as.numeric(sumReverse$group.freq), ')', sep=''), ''), ta)
-    tad <- data.frame(ta, row.names=NULL)
-    names(tad) <- c(' ', ' ', names(sumReverse$group.freq), 'P.value')
-            
-    if(saveCSV){
-        csvFileName <- ifelse(csvFileName=='', 
-            paste(paste(sample(LETTERS, 5, rep=TRUE), collapse=''), '.csv', sep=''), 
-            csvFileName)
-        write.csv(tad, csvFileName, row.names=FALSE)
-        cat('File name:', csvFileName, '\n')
-    }
-    if(!saveCSV) return(tad)
-}
