@@ -1,0 +1,17 @@
+.DS_Store
+# Swap files
+*.swp
+*.swo
+*.swn
+
+# Backup files
+*.un~
+
+# Session files 
+Session.vim
+
+# Undo files
+*.vimundo
+
+# Log files
+*.log
