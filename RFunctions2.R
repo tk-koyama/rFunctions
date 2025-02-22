@@ -39,22 +39,32 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
 ## Clean REDCap data ##
 ##                   ##
 ## ----------------- ##
-editRedCapData <- function(d, changeNames=TRUE){
-    ## Do d <- data ; rm(data) first.
-    ## Don't forget the .r file that redcap creates; it has rm(list=ls()) in it!
+editRedCapData <- function(d, changeNames=TRUE) {
+    ## Requires library('Hmisc')
 
-    fac <- unlist(strsplit(names(d)[grep('factor', names(d))], '.factor'))
-        for(i in fac){
-            nu <- which( names(d) == i)
-            fa <- which( names(d) == paste(i,'factor',sep='.') )
-            la <- label(d[,nu])
-            d[,nu] <- d[,fa]
-            label(d[,nu]) <- la
-            names(d[,nu]) 
+    # Identify columns ending in '.factor'
+    factor_cols <- grep("\\.factor$", names(d), value = TRUE)
+    if (length(factor_cols) == 0) return(d)  # Return unchanged if no factor columns exist
+
+    # Extract base names by removing '.factor' suffix
+    base_names <- gsub("\\.factor$", "", factor_cols)
+
+    # Replace numeric columns with their factor counterparts while preserving labels
+    for (base in base_names) {
+        num_col <- match(base, names(d))  # Get numeric column index
+        fac_col <- match(paste0(base, ".factor"), names(d))  # Get corresponding factor column index
+
+        if (!is.na(num_col) & !is.na(fac_col)) {  # Use `is.na()` check
+            d[[num_col]] <- structure(d[[fac_col]], label = label(d[[num_col]]))  # Replace & preserve label
         }
-    d <- d[, -grep('factor', names(d))]
-        if(changeNames){ names(d) <- capitalize(gsub('_+', '.', names(d))) }
-    d
+    }
+    # Remove redundant '.factor' columns
+    d <- d[, !names(d) %in% factor_cols]
+    # Optionally rename columns
+    if (changeNames){
+        names(d) <- capitalize(gsub("_+", ".", names(d)))  # Replace underscores and capitalize names
+    }
+    return(d)
 }
 ## --------------- ##
 ##                 ##
@@ -257,6 +267,7 @@ shadeDist <- function(df=NA, mean=NA, sd=NA, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='
 ## ------------------ ##
 ps2hr <- function(Prop, Time){
     ## Conversion from proportion surviving (until T) to hazard rate ##
+    ## Requires constant hazard assumption ##
     ## Prop = S(T)
     ## h = -ln(S(T))/T
     -log(Prop)/Time
