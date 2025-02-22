@@ -7,15 +7,23 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
     # Summarizes a numeric vector, optionally by groups.  
     # Input: Numeric vector `v` and optional grouping variable `g` (factor or character).  
     # Output: Summary statistics for each group, including NA as a separate group.  
-    if (length(g) > 0) {
-        g <- addNA(g)  # Automatically includes NA as a factor level
+    if (!is.null(g)) {
+        if (anyNA(g)) {
+            g <- addNA(g)  # Only add NA as a factor level if there are actual NA values
+        }
     }
     vg <- if (length(g) > 0) split(v, f=g) else list(Overall=v)  # Split into groups
     
     summaryNA <- function(x) {
-        x <- x[!is.na(x)]  # Ensure NAs in v are removed
-        c(summary(x)[1:6], sum(x), length(x), sd(x), sd(x)/sqrt(length(x)))  # Summary stats
-    }
+        x <- na.omit(x)  # Remove NAs
+        n <- length(x)    # Count valid values
+    if (n == 0) return(rep(NA, 10))  # Return all NA if no valid values
+    stats <- c(summary(x)[1:6], sum(x), n, sd(x), sd(x) / sqrt(n))
+    # Apply NA conditions **after computing everything**
+        if (n < 5) stats[c(2, 5)] <- NA  # Set Q1 & Q3 to NA if n < 5
+        if (n < 2) stats[c(9, 10)] <- NA  # Set SD & SE to NA if n < 2
+    return(stats)
+}
     
     # Compute summaries
     sm <- as.data.frame(t(sapply(vg, summaryNA)))
