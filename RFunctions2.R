@@ -117,22 +117,6 @@ addTime <- function(times) {
 
     return(multTime(paste(M, S, sep=':'), 1)) # Convert back to formatted time
 }
-## -------- ##
-##          ##
-## -------- ##
-addTime <- function(times) {
-    # Adds multiple time values together.  
-    # Input: Vector of times in "HH:MM:SS" or "MM:SS" as strings, or MM.SS as numerics.  
-    # Output: Summed time in "HH:MM:SS" or "MM:SS" format.  
-    totalSec <- 0  # Initialize total seconds
-
-    for (time in times) {
-        totalSec <- totalSec + as.numeric(multTime(time, multiplier=1, inSeconds=TRUE)) 
-    }
-    M <- totalSec %/% 60
-    S <- totalSec - 60*M
-    return(multTime(paste(M,S,sep=':'),1)) # Convert back to formatted time
-}
 ## --------------------------- ##
 ##                             ##
 ## Super simple power analysis ##
