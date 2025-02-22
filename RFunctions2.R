@@ -75,34 +75,52 @@ multTime <- function(lap, multiplier, inSeconds=FALSE) {
     # Multiplies a time value by a given factor.  
     # Input: "HH:MM:SS" or "MM:SS" as a string, or MM.SS as a numeric.  
     # Output: Scaled time in "HH:MM:SS" or "MM:SS" format.
+
     if (is.character(lap)) {
         time_parts <- as.numeric(unlist(strsplit(lap, ":")))
-        Sec <- as.numeric(substring(time_parts[length(time_parts)], 1, 2))  # Extract first two digits
-        Min <- time_parts[length(time_parts) - 1]
+            L <- length(time_parts)
+        Sec <- as.numeric(substring(time_parts[L], 1,2)) # Extract first two digits
+        Min <- as.numeric(time_parts[L-1]) # Extract first two digits
         Hr <- if (length(time_parts) == 3) time_parts[1] else 0
     } else {
         Hr <- 0  # Ensure Hr is always initialized
         Min <- floor(lap)  # Extract minutes
-        Sec <- as.integer(100 * round(lap - Min, 10))  # Prevent floating-point errors
+        Sec <- as.integer(round(100 * (lap - Min), 10))  # Prevent floating-point errors
     }
-
     out <- round((Hr * 3600 + Min * 60 + Sec) * multiplier)  # Scale & round total seconds
-
-    if(!inSeconds){
+    if (!inSeconds) {
         Hr  <- out %/% 3600  # Extract hours
         Min <- (out %% 3600) %/% 60  # Extract minutes
         Sec <- out %% 60  # Extract seconds
+        
         # Ensure two-digit seconds formatting
         Sec <- sprintf("%02d", Sec)
-        Min <- sprintf("%02d", Min)
-        out <- if (Hr > 0) paste(Hr, Min, Sec, sep=":") else paste(Min, Sec, sep=":")
+        
+        # Zero-pad minutes only if hours exist
+        out <- if (Hr > 0) paste(Hr, sprintf("%02d", Min), Sec, sep=":") else paste(as.integer(Min), Sec, sep=":")
     }
     return(out)
+}
+
+## -------- ##
+##          ##
+## -------- ##
+addTime <- function(times) {
+    # Adds multiple time values together.  
+    # Input: Vector of times in "HH:MM:SS" or "MM:SS" as strings, or MM.SS as numerics.  
+    # Output: Summed time in "HH:MM:SS" or "MM:SS" format.  
+    totalSec <- sum(as.numeric(sapply(times, multTime, multiplier=1, inSeconds=TRUE)))  
+
+    # Correctly extract minutes and remaining seconds
+    M <- totalSec %/% 60
+    S <- totalSec %% 60
+
+    return(multTime(paste(M, S, sep=':'), 1)) # Convert back to formatted time
 }
 ## -------- ##
 ##          ##
 ## -------- ##
-addTime <- function(times, inSeconds=FALSE) {
+addTime <- function(times) {
     # Adds multiple time values together.  
     # Input: Vector of times in "HH:MM:SS" or "MM:SS" as strings, or MM.SS as numerics.  
     # Output: Summed time in "HH:MM:SS" or "MM:SS" format.  
@@ -112,8 +130,8 @@ addTime <- function(times, inSeconds=FALSE) {
         totalSec <- totalSec + as.numeric(multTime(time, multiplier=1, inSeconds=TRUE)) 
     }
     M <- totalSec %/% 60
-    S <- totalSec - 60* M
-    return(multTime(paste(M,S,sep=':'),1,inSeconds)) # Convert back to formatted time
+    S <- totalSec - 60*M
+    return(multTime(paste(M,S,sep=':'),1)) # Convert back to formatted time
 }
 ## --------------------------- ##
 ##                             ##
