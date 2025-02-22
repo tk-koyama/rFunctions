@@ -8,8 +8,7 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
     # Input: Numeric vector `v` and optional grouping variable `g` (factor or character).  
     # Output: Summary statistics for each group, including NA as a separate group (if any).  
     # Select what to display. e.g., select_stats=c('N','Q1','Med','Q3') or
-    # Select what not to display. e.g., select_stats=c('-SD','SE')
-    
+    # Select what not to display. e.g., select_stats=c('-SD','-SE')
     if (!is.null(g) && anyNA(g)) g <- addNA(g)  # Add NA level only if needed
     vg <- if (!is.null(g)) split(v, f=g) else list(Overall=v)  # Split into groups
 
@@ -17,7 +16,7 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
         x <- na.omit(x)  
         n <- length(x)    
             if (n == 0) return(rep(NA, 10))  
-        stats <- c(summary(x)[1:6], sum(x), n, sd(x), sd(x) / sqrt(n))
+        stats <- c(n, summary(x)[c(1:3,5,6,4)], sd(x), sd(x)/sqrt(n))
             if (n < 5) stats[c(2, 5)] <- NA  # Set Q1 & Q3 to NA if n < 5
             if (n < 2) stats[c(9, 10)] <- NA  # Set SD & SE to NA if n < 2
         return(stats)
@@ -27,7 +26,7 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
 
     if (Combined & !is.null(g)) sm <- rbind(sm, Combined = summaryNA(v))
     
-    colnames(sm) <- c("Min", "Q1", "Med", "Mean", "Q3", "Max", "Total", "N", "SD", "SE")
+    colnames(sm) <- c("N", "Min", "Q1", "Med", "Q3", "Max", 'Mean', "SD", "SE")
 
     # **New explicit inclusion/exclusion logic**
     if (!is.null(select_stats)) {
