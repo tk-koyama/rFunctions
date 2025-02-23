@@ -119,7 +119,6 @@ addTime <- function(times) {
     # Output: Summed time in "HH:MM:SS" or "MM:SS" format.  
     totalSec <- sum(as.numeric(sapply(times, multTime, multiplier=1, inSeconds=TRUE)))  
 
-    # Correctly extract minutes and remaining seconds
     M <- totalSec %/% 60
     S <- totalSec %% 60
 
@@ -178,22 +177,22 @@ BetaMS <- function(a,b){
 ## -------- ##
 ##          ##
 ## -------- ##
-BetaParameters <- function(m,v, PLOT=FALSE){
-    ## Solving for alpha and beta in BETA distribition given mean and variance.
-    a <- m^2*(1-m)/v - m
-    b <- (1-m)*(m*(1-m)/v-1)
-        if(PLOT) plotBetaDis(a,b)
-    c(a,b)
-}
-## -------- ##
-##          ##
-## -------- ##
 plotBetaDis <- function(a,b, add=FALSE, ...){
   # Plot Beta(a,b) pdf.
   p <- seq(0,1, length=1000)
   q <- dbeta(p, a,b)
   if(!add) plot(p,q, type='l', ylab='Density', yaxt='n', ...)
   if( add) lines(p,q, ...)
+}
+## -------- ##
+##          ##
+## -------- ##
+BetaParameters <- function(m,v, PLOT=FALSE){
+    ## Solving for alpha and beta in BETA distribition given mean and variance.
+    a <- m^2*(1-m)/v - m
+    b <- (1-m)*(m*(1-m)/v-1)
+        if(PLOT) plotBetaDis(a,b)
+    c(a,b)
 }
 ## -------- ##
 ##          ##
@@ -212,8 +211,8 @@ BetaCI <- function(a, b, x, n, p) {
     data.frame(
         prior_a=a, prior_b=b, 
         successes=x, trials=n, 
-        credibility_level=paste0(100 * p, "%"), 
-        lower_bound=lb, median=med, upper_bound=ub)
+        cred_level=paste0(100 * p, "%"), 
+        lower=lb, median=med, upper=ub)
 }
 ## -------------------------- ##
 ##                            ##
@@ -221,7 +220,7 @@ BetaCI <- function(a, b, x, n, p) {
 ##                            ##
 ## -------------------------- ##
 shadeDist <- function(df=NA, mean=NA, sd=NA, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='royalblue', 
-                      shadeDensity=60, add=FALSE, yl=NA, xlim=NA, ...){
+                      add=FALSE, yl=NA, xlim=NA, ...){
     # Plot and shade regions under t or Normal distribution.
     # Determine whether to use t-distribution or normal distribution
     if (!is.na(df) && (is.na(mean) || is.na(sd))) {
@@ -256,7 +255,7 @@ shadeDist <- function(df=NA, mean=NA, sd=NA, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='
     # Function to shade regions under the curve
     shade_region <- function(L, R, co) {
         if (L < R) {
-            X_shade <- seq(L, R, length.out=shadeDensity)
+            X_shade <- seq(L, R, length.out=100)
             Y_shade <- density_fun(X_shade)
             polygon(c(X_shade, rev(X_shade)), c(Y_shade, rep(0, length(X_shade))), col=adjustcolor(co, alpha.f=0.5), border=NA)
         }
@@ -275,20 +274,20 @@ shadeDist <- function(df=NA, mean=NA, sd=NA, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='
 ## surival parameters ##
 ##                    ##
 ## ------------------ ##
-ps2hr <- function(Prop, Time){
+ps2hr <- function(prop, Time){
     ## Conversion from proportion surviving (until T) to hazard rate ##
     ## Requires constant hazard assumption ##
     ## Prop = S(T)
     ## h = -ln(S(T))/T
-    -log(Prop)/Time
+    -log(prop)/Time
 }
 ## -------- ##
 ##          ##
 ## -------- ##
-ms2hr <- function(MS){
+ms2hr <- function(ms){
     ## Conversion from median survival to hazard rate ##
     ## Requires constant hazard assumption ##
-    ps2hr(0.50, MS)
+    ps2hr(0.50, ms)
 }
 ## -------- ##
 ##          ##
@@ -302,18 +301,18 @@ hr2ms <- function(hr){
 ## -------- ##
 ##          ##
 ## -------- ##
-ps2ms <- function(Prop, Time){
+ps2ms <- function(prop, Time){
     ## Conversion from proportion surviving (until Time) to median survival ##
     ## Requires constant hazard assumption ##
-    hr2ms(ps2hr(Prop, Time))
+    hr2ms(ps2hr(prop, Time))
 }
 ## -------- ##
 ##          ##
 ## -------- ##
-ms2ps <- function(MS, Time){
+ms2ps <- function(ms, Time){
     ## Conversion from median survival to proportion surviving (until Time) ##
     ## Requires constant hazard assumption ##
-    hr <- ms2hr(MS)
+    hr <- ms2hr(ms)
     1/exp(hr*Time)
 }
 ## -------- ##
