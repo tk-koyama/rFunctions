@@ -3,7 +3,7 @@
 ## Summary statistics ##
 ##                    ##
 ## ------------------ ##
-groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
+groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL, omit_all_NA=FALSE) {
     # Summarizes a numeric vector, optionally by groups.  
     # Input: Numeric vector `v` and optional grouping variable `g` (factor or character).  
     # Output: Summary statistics for each group, including NA as a separate group (if any).  
@@ -15,15 +15,15 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL) {
     summaryNA <- function(x) {
         x <- na.omit(x)  
         n <- length(x)    
-            if (n == 0) return(rep(NA, 10))  
+            if (n == 0) return(rep(NA, 9))  
         stats <- c(n, summary(x)[c(1:3,5,6,4)], sd(x), sd(x)/sqrt(n))
-            if (n < 5) stats[c(2, 5)] <- NA  # Set Q1 & Q3 to NA if n < 5
+            if (n < 5) stats[c(3, 5)] <- NA  # Set Q1 & Q3 to NA if n < 5
             if (n < 2) stats[c(9, 10)] <- NA  # Set SD & SE to NA if n < 2
         return(stats)
     }
 
     sm <- as.data.frame(t(sapply(vg, summaryNA)))
-
+    if (omit_all_NA) sm <- sm[ !is.na(sm[,1]), ]
     if (Combined & !is.null(g)) sm <- rbind(sm, Combined = summaryNA(v))
     
     colnames(sm) <- c("N", "Min", "Q1", "Med", "Q3", "Max", 'Mean', "SD", "SE")
