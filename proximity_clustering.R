@@ -57,6 +57,7 @@ proximity_clustering <- function(y, clustering_distance) {
 
     # Convert clusters into final output
     out_list <- vector("list", length(clusters))
+    set.seed(620)
     for (i in seq_along(clusters)) {
         this_cluster <- clusters[[i]]
         n <- nrow(this_cluster)
