@@ -13,20 +13,21 @@ groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL, omit_all_NA=FA
     vg <- if (!is.null(g)) split(v, f=g) else list(Overall=v)  # Split into groups
 
     summaryNA <- function(x) {
+        n_miss <- sum(is.na(x))
         x <- na.omit(x)  
         n <- length(x)    
-            if (n == 0) return(rep(NA, 9))  
-        stats <- c(n, summary(x)[c(1:3,5,6,4)], sd(x), sd(x)/sqrt(n))
-            if (n < 5) stats[c(3, 5)] <- NA  # Set Q1 & Q3 to NA if n < 5
+            if (n == 0) return(c(n,n_miss,rep(NA, 8)))  
+        stats <- c(n, n_miss, summary(x)[c(1:3,5,6,4)], sd(x), sd(x)/sqrt(n))
+            if (n < 5) stats[c(4, 6)] <- NA  # Set Q1 & Q3 to NA if n < 5
             if (n < 2) stats[c(9, 10)] <- NA  # Set SD & SE to NA if n < 2
         return(stats)
     }
 
     sm <- as.data.frame(t(sapply(vg, summaryNA)))
-    if (omit_all_NA) sm <- sm[ !is.na(sm[,1]), ]
+    if (omit_all_NA) sm <- sm[ sm[,1]>0, ]
     if (Combined & !is.null(g)) sm <- rbind(sm, Combined = summaryNA(v))
     
-    colnames(sm) <- c("N", "Min", "Q1", "Med", "Q3", "Max", 'Mean', "SD", "SE")
+    colnames(sm) <- c("N", "Nmiss", "Min", "Q1", "Med", "Q3", "Max", 'Mean', "SD", "SE")
 
     # **New explicit inclusion/exclusion logic**
     if (!is.null(select_stats)) {
