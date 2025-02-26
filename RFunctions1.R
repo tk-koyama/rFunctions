@@ -21,63 +21,6 @@ dbplot <- function(y, g=NULL, data=NULL, clustering_distance=NULL, jitter_amount
                    grid_x=NULL, grid_y=NULL,
                    show_n=TRUE, fig_type='d', NA_fig_type=NULL, grid_par=NULL, ...){
 
-if(FALSE){
-set.seed(4)
-y <- rnorm(100)
-g <- sample(c('a','b','d'), 100, TRUE)
-
-data=NULL
-clustering_distance=0
-jitter_amount=NULL
-output=FALSE 
-group_names=NULL
-group_positions=NULL
-indiv_col=NULL
-group_col=NULL
-indiv_pch=NULL
-group_pch=NULL
-NA_as_group=FALSE 
-NA_group_name=NULL
-NA_group_position=NULL
-NA_group_col=NULL
-NA_group_pch=NULL 
-box_col=NULL
-NA_box_col=NULL 
-grid_x=NULL
-grid_y=NULL 
-show_n=TRUE
-fig_type='d' 
-NA_fig_type=NULL
-grid_par=NULL
-
-
-extra_args <- NULL
-plot_args <- NULL
-points_args <- NULL
-boxplot_args <- NULL
-
-
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## Version 1.0 (2025-02-25) ##
     ## See https://tk-koyama.github.io/rhtml/RFunctions1.html
     ## This replaces tplot() that I've used since 2010.
