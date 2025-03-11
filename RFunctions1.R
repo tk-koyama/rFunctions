@@ -813,7 +813,7 @@ text.with.bg <- function(x.pos, y.pos, txt, col=4, bkgr=5, x.pad=1.2, y.pad=0.5,
 #-----------#
 #- example -#
 #-----------#
-if(!FALSE){
+if(FALSE){
     set.seed(620)
     x <- sample(4:14, 100, replace=TRUE) + rnorm(100,0,1)
     y <- x + rnorm(100, 0, 3)
@@ -822,8 +822,8 @@ plot(x,y, xlim=c(0,20), ylim=c(0,20), pch=20,
      panel.first=grid(nx=NULL, ny=NULL,lty=1, col='lightblue'))
 
 txt <- paste('Say something','\n','interesting here.', sep='')
-text.with.bg(x.pos=15.5, y.pos=2.5, txt=txt, col='red', bkgr='pink', x.pad=2, y.pad=2,
-             border='red', cex=0.8, font=4, family='serif')
+text.with.bg(x.pos=15.5, y.pos=2.5, txt=txt, col='royalblue', bkgr='thistle1', x.pad=2, y.pad=2,
+             border='dodgerblue', cex=0.8, font=4, family='serif')
 }
 
 ###########
