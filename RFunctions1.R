@@ -9,7 +9,6 @@
 ############
 ## dbplot ##
 ############
-
 dbplot <- function(y, g=NULL, data=NULL, clustering_distance=NULL, jitter_amount=NULL, output=FALSE, 
                    group_names=NULL, group_positions=NULL, 
                    indiv_col=NULL, group_col=NULL,
@@ -459,11 +458,10 @@ kmplot <- function(km, mark=3, simple=FALSE,
         # par(op) 
         if(returnOutput) return(dat.list)
 }
-
 #-----------#
 #- example -#
 #-----------#
-if(!TRUE){
+if(FALSE){
 library(survival)
     kma <- survfit( Surv(time, status) ~ rx + adhere, data=colon )
     km <- survfit( Surv(time, status) ~ rx, data=colon )
@@ -582,14 +580,13 @@ jmplot <- function(x, y, levels, names=NULL, xlim=NULL, ylim=NULL, log="", main=
 #-----------#
 #- example -#
 #-----------#
-if(!TRUE){
+if(FALSE){
   set.seed(1220)
   x <- rexp(100)
   y <- rexp(100)
   levels <- as.factor(sample(c("Male","Female"), 100, TRUE))
   jmplot(x, y, levels, col=levels)
 }
-
                           
 ############
 ## dsplot ##
@@ -737,6 +734,7 @@ show.colors <- function(){
    text((1:x)-.5, rep(-.5,x), y*(0:(x-1)), cex=1.2-.022*x)
    title('col=colors()[n]')
 }
+
 ##############
 ## propPlot ##
 ##############
@@ -786,6 +784,47 @@ propPlot <- function(x, TrueFalse, howManyGroups=4, cutPoints=NULL, dig.x=1, ...
     tab
 }
 
+##################
+## text.with.bg ##
+##################
+text.with.bg <- function(x.pos, y.pos, txt, col=4, bkgr=5, x.pad=1.2, y.pad=0.5, border=NA, ...) {
+    # Get plot coordinate limits
+    usr <- par("usr")
+    x.range <- usr[2] - usr[1]
+    y.range <- usr[4] - usr[3]
+    # Compute text dimensions
+    wid <- strwidth(txt, ...)
+    hig <- strheight(txt, ...)
+    # Scale padding relative to plot dimensions
+    x.pad.a <- x.range * 0.01 * x.pad
+    y.pad.a <- y.range * 0.01 * y.pad
+    # Set the box to start at (x.pos, y.pos) and expand downward & right
+    x1 <- x.pos
+    x2 <- x1 + wid + 2 * x.pad.a
+    y1 <- y.pos
+    y2 <- y1 - hig - 2 * y.pad.a
+    # Draw background rectangle if needed
+    if (!is.na(bkgr) || !is.na(border)){
+        rect(x1, y1, x2, y2, col=ifelse(is.na(bkgr), NA, bkgr), border=border)
+    }
+    # Draw text inside the box, slightly offset downward for padding
+    text(x=x.pos + x.pad.a, y=y.pos - y.pad.a, labels=txt, adj=c(0,1), col=col, ...)
+}
+#-----------#
+#- example -#
+#-----------#
+if(!FALSE){
+    set.seed(620)
+    x <- sample(4:14, 100, replace=TRUE) + rnorm(100,0,1)
+    y <- x + rnorm(100, 0, 3)
+    x[100] <- 15.2 ; y[100] <- 3.1
+plot(x,y, xlim=c(0,20), ylim=c(0,20), pch=20,
+     panel.first=grid(nx=NULL, ny=NULL,lty=1, col='lightblue'))
+
+txt <- paste('Say something','\n','interesting here.', sep='')
+text.with.bg(x.pos=15.5, y.pos=2.5, txt=txt, col='red', bkgr='pink', x.pad=2, y.pad=2,
+             border='red', cex=0.8, font=4, family='serif')
+}
 
 ###########
 ## tplot ##
