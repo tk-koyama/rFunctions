@@ -18,7 +18,7 @@ dbplot <- function(y, g=NULL, data=NULL, clustering_distance=NULL, jitter_amount
                    NA_group_col=NULL, NA_group_pch=NULL,
                    box_col=NULL, NA_box_col=NULL,
                    grid_x=NULL, grid_y=NULL,
-                   show_n=TRUE, fig_type='d', NA_fig_type=NULL, grid_par=NULL, ...){
+                   show_n=TRUE, fig_type='d', NA_fig_type=NULL, grid_par=NULL, xaxis=TRUE, yaxis=TRUE, ...){
 
 ## Version 1.0 (2025-02-25) ##
     ## See https://tk-koyama.github.io/rhtml/RFunctions1.html
@@ -154,14 +154,18 @@ grouped_data <- lapply(grouped_data, function(subdat) {
 do.call(plot, c(list(0, type='n', 
                      ylim = if (!is.null(extra_args$ylim)) extra_args$ylim else range(y, na.rm=TRUE), 
                      xlim = if (!is.null(extra_args$xlim)) extra_args$xlim else range(group_positions) + c(-0.5, 0.5), 
-                     xaxt='n'), 
+                     xaxt='n', yaxt='n'), 
                 plot_args[!names(plot_args) %in% c("xlim", "ylim")]))
 
 # grid 
 if (!is.null(grid_y)) do.call(abline, c(list(h = grid_y), grid_par))
 if (!is.null(grid_x)) do.call(abline, c(list(v = grid_x), grid_par))
-# axis
-axis(1, at=group_positions, labels=group_names, tick=FALSE, line=0)
+
+if(xaxis) axis(1, at=group_positions, labels=group_names, tick=FALSE, line=0)
+if(yaxis){
+    if(!is.null(grid_y)){ axis(2, at=grid_y, tick=FALSE, line=0)
+    } else { axis(2, at=pretty(par('usr')[3:4]), tick=FALSE, line=0) }
+}
 
 # show_n
 if (show_n) { 
@@ -184,7 +188,7 @@ for(i in seq_along(group_positions)) {
     this <- grouped_data[[i]] 
     if(fig_type[i] %in% c('b','db')){ 
             mdl <- ifelse(fig_type[i] == 'b', 3, 1)
-        bpp <- do.call(boxplot, c(list(this$y, add=TRUE, at=group_positions[i], outline=FALSE, col=box_col[i], medlwd=mdl), boxplot_args))
+        bpp <- do.call(boxplot, c(list(this$y, add=TRUE, at=group_positions[i], outline=FALSE, col=box_col[i], medlwd=mdl, yaxt='n'), boxplot_args))
         ol <- this[ this$y %in% bpp$out, ]
         do.call(points, c(list(group_positions[i] + ol$jitter_pos * jitter_amount, ol$y, col=ol$col, pch=ol$pch), points_args))
     } 
@@ -192,7 +196,7 @@ for(i in seq_along(group_positions)) {
       do.call(points, c(list(group_positions[i] + this$jitter_pos * jitter_amount, this$y, col=this$col, pch=this$pch), points_args)) 
     }
     if(fig_type[i] %in% 'bd'){ 
-        bdp <- do.call(boxplot, c(list(this$y, add=TRUE, at=group_positions[i], outline=FALSE, col=box_col[i]), boxplot_args))
+        bdp <- do.call(boxplot, c(list(this$y, add=TRUE, at=group_positions[i], outline=FALSE, col=box_col[i], yaxt='n'), boxplot_args))
         ol <- this[ this$y %in% bpp$out, ]
         do.call(points, c(list(group_positions[i] + ol$jitter_pos * jitter_amount, ol$y, col=ol$col, pch=ol$pch), points_args))
     } 
