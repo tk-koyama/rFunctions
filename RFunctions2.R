@@ -3,44 +3,42 @@
 ## Summary statistics ##
 ##                    ##
 ## ------------------ ##
-groupSum <- function(v, g=NULL, Combined=TRUE, select_stats=NULL, omit_all_NA=FALSE) {
-    # Summarizes a numeric vector, optionally by groups.  
-    # Input: Numeric vector `v` and optional grouping variable `g` (factor or character).  
-    # Output: Summary statistics for each group, including NA as a separate group (if any).  
-    # Select what to display. e.g., select_stats=c('N','Q1','Med','Q3') or
-    # Select what not to display. e.g., select_stats=c('-SD','-SE')
+groupSum <- function(v, g=NULL, data=NULL, Combined=TRUE, select_stats=NULL, omit_all_NA=FALSE){
+    # If data is provided, extract v and g correctly
+    if (!is.null(data)) {
+        v <- eval(substitute(v), data, parent.frame())
+        if (!is.null(substitute(g))) g <- eval(substitute(g), data, parent.frame())
+    }
+    # Summarizes a numeric vector, optionally by groups.
     if (!is.null(g) && anyNA(g)) g <- addNA(g)  # Add NA level only if needed
-    vg <- if (!is.null(g)) split(v, f=g) else list(Overall=v)  # Split into groups
+    vg <- if (!is.null(g)) split(v, f = g) else list(Overall = v)
 
     summaryNA <- function(x) {
         n_miss <- sum(is.na(x))
         x <- na.omit(x)  
         n <- length(x)    
-            if (n == 0) return(c(n,n_miss,rep(NA, 8)))  
-        stats <- c(n, n_miss, summary(x)[c(1:3,5,6,4)], sd(x), sd(x)/sqrt(n))
-            if (n < 5) stats[c(4, 6)] <- NA  # Set Q1 & Q3 to NA if n < 5
-            if (n < 2) stats[c(9, 10)] <- NA  # Set SD & SE to NA if n < 2
+        if (n == 0) return(c(n, n_miss, rep(NA, 8)))  
+        stats <- c(n, n_miss, summary(x)[c(1:3, 5, 6, 4)], sd(x), sd(x)/sqrt(n))
+        if (n < 5) stats[c(4, 6)] <- NA  # Set Q1 & Q3 to NA if n < 5
+        if (n < 2) stats[c(9, 10)] <- NA  # Set SD & SE to NA if n < 2
         return(stats)
     }
-
     sm <- as.data.frame(t(sapply(vg, summaryNA)))
-    if (omit_all_NA) sm <- sm[ sm[,1]>0, ]
+    if (omit_all_NA) sm <- sm[sm[, 1] > 0, ]
     if (Combined & !is.null(g)) sm <- rbind(sm, Combined = summaryNA(v))
     
     colnames(sm) <- c("N", "Nmiss", "Min", "Q1", "Med", "Q3", "Max", 'Mean', "SD", "SE")
 
-    # **New explicit inclusion/exclusion logic**
-    if (!is.null(select_stats)) {
+    if (!is.null(select_stats)){
         remove_mode <- any(grepl("^-", select_stats))  # Check if negative selection is used
         
-        if (remove_mode) {  
+        if (remove_mode){  
             select_stats <- sub("-", "", select_stats)  # Remove "-" prefix
-            sm <- sm[, !colnames(sm) %in% select_stats, drop=FALSE]  # Remove specified stats
-        } else {  
-            sm <- sm[, select_stats, drop=FALSE]  # Keep only specified stats
+            sm <- sm[, !colnames(sm) %in% select_stats, drop = FALSE]  # Remove specified stats
+        } else{  
+            sm <- sm[, select_stats, drop = FALSE]  # Keep only specified stats
         }
     }
-
     return(sm)
 }
 ## ----------------- ##
