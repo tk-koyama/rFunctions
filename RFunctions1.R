@@ -504,7 +504,61 @@ kmplot(kma, mark='',
 ) 
 title(main='Chemotherapy for stage B/C colon cancer', adj=.5, font.main=1, line=0.5, cex.main=1)
 }
+## -------------------------- ##
+##                            ##
+## Draw Normal/t distribution ##
+##                            ##
+## -------------------------- ##
+shadeDist <- function(df=NA, mean=NA, sd=NA, LEFT=NA, RIGHT=NA, BETWEEN=NA, co='royalblue', 
+                      add=FALSE, yl=NA, xlim=NA, ...){
+    # Plot and shade regions under t or Normal distribution.
+    # Determine whether to use t-distribution or normal distribution
+    if (!is.na(df) && (is.na(mean) || is.na(sd))) {
+        # Use t-distribution
+        dist_type <- "t"
+        density_fun <- function(x) dt(x, df=df)
+        quantile_fun <- function(p) qt(p, df=df)
+    } else if (!is.na(mean) && !is.na(sd) && is.na(df)) {
+        # Use normal distribution
+        dist_type <- "normal"
+        density_fun <- function(x) dnorm(x, mean=mean, sd=sd)
+        quantile_fun <- function(p) qnorm(p, mean=mean, sd=sd)
+    } else {
+        stop("Specify either df (for t-distribution) or mean and sd (for normal distribution), but not both.")
+    }
 
+    # Set dynamic x-axis limits
+    if (is.na(xlim[1])) xlim <- quantile_fun(c(0.001, 0.999))
+    X <- seq(xlim[1], xlim[2], length=500)
+    Y <- density_fun(X)
+
+    # Set y-axis limits if not provided
+    if (is.na(yl[1])) yl <- c(0, max(Y) * 1.05)
+
+    # Plot the distribution curve
+    if (!add) {
+        plot(X, Y, type='l', yaxs='i', ylim=yl, xlim=xlim, ...)
+    } else {
+        lines(X, Y, ...)
+    }
+
+    # Function to shade regions under the curve
+    shade_region <- function(L, R, co) {
+        if (L < R) {
+            X_shade <- seq(L, R, length.out=100)
+            Y_shade <- density_fun(X_shade)
+            polygon(c(X_shade, rev(X_shade)), c(Y_shade, rep(0, length(X_shade))), col=adjustcolor(co, alpha.f=0.5), border=NA)
+        }
+    }
+
+    # Apply shading conditions
+    if (!is.na(LEFT)) shade_region(L=xlim[1], R=LEFT, co)
+    if (!is.na(RIGHT)) shade_region(L=RIGHT, R=xlim[2], co)
+    if (!is.na(BETWEEN[1]) && length(BETWEEN) == 2) shade_region(L=BETWEEN[1], R=BETWEEN[2], co)
+
+    # Redraw the curve on top for clarity
+    lines(X, Y, ...)
+}
 ############
 ## jmplot ##
 ############
