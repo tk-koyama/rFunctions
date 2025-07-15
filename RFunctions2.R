@@ -82,31 +82,27 @@ multTime <- function(lap, multiplier, inSeconds=FALSE) {
     # Multiplies a time value by a given factor.  
     # Input: "HH:MM:SS" or "MM:SS" as a string, or MM.SS as a numeric.  
     # Output: Scaled time in "HH:MM:SS" or "MM:SS" format.
-
-    if (is.character(lap)) {
-        time_parts <- as.numeric(unlist(strsplit(lap, ":")))
+    convert_one <- function(l) {
+        if (is.character(l)) {
+            time_parts <- as.numeric(unlist(strsplit(l, ":")))
             L <- length(time_parts)
-        Sec <- as.numeric(substring(time_parts[L], 1,2)) # Extract first two digits
-        Min <- as.numeric(time_parts[L-1]) # Extract first two digits
-        Hr <- if (length(time_parts) == 3) time_parts[1] else 0
-    } else {
-        Hr <- 0  # Ensure Hr is always initialized
-        Min <- floor(lap)  # Extract minutes
-        Sec <- as.integer(round(100 * (lap - Min), 10))  # Prevent floating-point errors
-    }
-    out <- round((Hr * 3600 + Min * 60 + Sec) * multiplier)  # Scale & round total seconds
-    if (!inSeconds) {
-        Hr  <- out %/% 3600  # Extract hours
-        Min <- (out %% 3600) %/% 60  # Extract minutes
-        Sec <- out %% 60  # Extract seconds
-        
-        # Ensure two-digit seconds formatting
+            Sec <- as.numeric(substring(time_parts[L], 1, 2))
+            Min <- as.numeric(time_parts[L - 1])
+            Hr <- if (L == 3) time_parts[1] else 0
+        } else {
+            Hr <- 0
+            Min <- floor(l)
+            Sec <- as.integer(round(100 * (l - Min), 10))
+        }
+        total <- round((Hr * 3600 + Min * 60 + Sec) * multiplier)
+        if (inSeconds) return(total)
+        Hr <- total %/% 3600
+        Min <- (total %% 3600) %/% 60
+        Sec <- total %% 60
         Sec <- sprintf("%02d", Sec)
-        
-        # Zero-pad minutes only if hours exist
-        out <- if (Hr > 0) paste(Hr, sprintf("%02d", Min), Sec, sep=":") else paste(as.integer(Min), Sec, sep=":")
+        if (Hr > 0) paste(Hr, sprintf("%02d", Min), Sec, sep=":") else paste(as.integer(Min), Sec, sep=":")
     }
-    return(out)
+    vapply(lap, convert_one, if (inSeconds) numeric(1) else character(1))
 }
 
 ## -------- ##
