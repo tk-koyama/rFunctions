@@ -274,7 +274,7 @@ hr2ps <- function(hr, Time){
 ## ---------------- ##
 myKindaDay <- function(dat){
     # Format date from 2025-02-25 to 2025/2/25.
-    afd <- function(x, fmt) as.numeric(format(x, format=fmt))  # Convert to numeric to remove zero-padding
+    afd <- function(x, fmt) as.numeric(format.Date(x, format=fmt))  # Convert to numeric to remove zero-padding
     y <- sapply(dat, afd, fmt='%Y')
     m <- sapply(dat, afd, fmt='%m')  # Converts "02" to 2, "07" to 7, etc.
     d <- sapply(dat, afd, fmt='%d')  # Converts "09" to 9, etc.

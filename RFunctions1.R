@@ -143,7 +143,8 @@ PCH <- if (!is.null(indiv_pch)) {
 
 # Apply clustering algorithm #
 grouped_data <- lapply(grouped_data, function(subdat) { 
-        clustered_data <- proximity_clustering(subdat$y, clustering_distance=clustering_distance) 
+        #  clustered_data <- proximity_clustering_2(subdat$y, clustering_distance=clustering_distance) 
+         clustered_data <- proximity_clustering(subdat$y, clustering_distance=clustering_distance) 
         clustered_data$jitter_pos <- jitter_position(clustered_data$cluster_size, clustered_data$within_cluster_id) 
         clustered_data <- clustered_data[order(clustered_data$original_position), ] 
         return(cbind(subdat, clustered_data[-1])) 
@@ -276,7 +277,6 @@ proximity_clustering <- function(y, clustering_distance) {
 
     # Convert clusters into final output
     out_list <- vector("list", length(clusters))
-    set.seed(620)
     for (i in seq_along(clusters)) {
         this_cluster <- clusters[[i]]
         n <- nrow(this_cluster)
@@ -310,6 +310,54 @@ proximity_clustering <- function(y, clustering_distance) {
     
     return(result)
 }
+
+
+proximity_clustering_2 <- function(y, clustering_distance) {
+    n <- length(y)
+    out <- data.frame(
+        y = y,
+        original_position = seq_along(y),
+        cluster_id = NA_integer_,
+        cluster_size = NA_integer_,
+        within_cluster_id = NA_integer_
+    )
+    
+    if (n == 0 || all(is.na(y))) {
+        out$cluster_id <- 1
+        out$cluster_size <- n
+        out$within_cluster_id <- seq_len(n)
+        return(out)
+    }
+
+    non_na_idx <- which(!is.na(y))
+    y_non_na <- y[non_na_idx]
+    ord <- order(y_non_na)
+    y_sorted <- y_non_na[ord]
+    
+    d <- diff(y_sorted)
+    cluster_id <- cumsum(c(TRUE, d > clustering_distance))
+    
+    # Create cluster table
+    cluster_sizes <- tabulate(cluster_id)
+    cluster_ids <- cluster_id
+    cluster_sizes_expanded <- cluster_sizes[cluster_ids]
+    
+    # Random within-cluster ids
+    set.seed(620)
+    within_cluster_id <- ave(seq_along(y_sorted), cluster_ids, FUN=function(x) sample(length(x)))
+    
+    tmp <- data.frame(
+        original_position = non_na_idx[ord],
+        cluster_id = cluster_ids,
+        cluster_size = cluster_sizes_expanded,
+        within_cluster_id = within_cluster_id
+    )
+    
+    out[tmp$original_position, c('cluster_id','cluster_size','within_cluster_id')] <- tmp[,c('cluster_id','cluster_size','within_cluster_id')]
+    return(out)
+}
+
+
 
 ############
 ## kmplot ##
