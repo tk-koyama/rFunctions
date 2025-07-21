@@ -104,7 +104,6 @@ multTime <- function(lap, multiplier, inSeconds=FALSE) {
     }
     vapply(lap, convert_one, if (inSeconds) numeric(1) else character(1))
 }
-
 ## -------- ##
 ##          ##
 ## -------- ##
