@@ -78,31 +78,38 @@ editRedCapData <- function(d, changeNames=TRUE) {
 ## Running related ##
 ##                 ##
 ## --------------- ##
-multTime <- function(lap, multiplier, inSeconds=FALSE) {
-    # Multiplies a time value by a given factor.  
-    # Input: "HH:MM:SS" or "MM:SS" as a string, or MM.SS as a numeric.  
-    # Output: Scaled time in "HH:MM:SS" or "MM:SS" format.
-    convert_one <- function(l) {
-        if (is.character(l)) {
-            time_parts <- as.numeric(unlist(strsplit(l, ":")))
-            L <- length(time_parts)
-            Sec <- as.numeric(substring(time_parts[L], 1, 2))
-            Min <- as.numeric(time_parts[L - 1])
-            Hr <- if (L == 3) time_parts[1] else 0
-        } else {
-            Hr <- 0
-            Min <- floor(l)
-            Sec <- as.integer(round(100 * (l - Min), 10))
-        }
-        total <- round((Hr * 3600 + Min * 60 + Sec) * multiplier)
-        if (inSeconds) return(total)
-        Hr <- total %/% 3600
-        Min <- (total %% 3600) %/% 60
-        Sec <- total %% 60
-        Sec <- sprintf("%02d", Sec)
-        if (Hr > 0) paste(Hr, sprintf("%02d", Min), Sec, sep=":") else paste(as.integer(Min), Sec, sep=":")
-    }
-    vapply(lap, convert_one, if (inSeconds) numeric(1) else character(1))
+multTime <- function(lap, multiplier, inSeconds=FALSE){
+    # Multiplies a lap time by a numeric factor, returning total duration.
+    # Args:
+    #   lap:        Time per lap in "HH:MM:SS", "MM:SS" or MM.SS.
+    #   multiplier: Numeric scaling factor.
+    #   inSeconds:  If TRUE, returns result in seconds.
+    # Returns:
+    #   Total time as a formatted string (default) or numeric seconds.
+  to_sec <- function(x){
+    if (is.character(x)) {
+      if (grepl(":", x)) {
+        p <- as.numeric(strsplit(x, ':')[[1]])
+        sum(p * c(3600, 60, 1)[(4 - length(p)):3])
+      } else if (grepl("\\.", x)) {
+        p <- as.numeric(strsplit(x, "\\.")[[1]])
+        if (length(p) == 2) p[1] * 60 + p[2] else stop('Invalid numeric time format')
+      } else stop('Unrecognized time format')
+    } else if (is.numeric(x)) {
+      floor(x) * 60 + round(100 * (x - floor(x)))
+    } else stop('Input must be character or numeric')
+  }
+  
+  sec <- unname(round(sapply(lap, to_sec) * multiplier))
+  
+  if (inSeconds) return(sec)
+  
+  fmt <- function(s) {
+    h <- s %/% 3600; m <- (s %% 3600) %/% 60; s <- s %% 60
+    if (h > 0) sprintf('%d:%02d:%02d', h, m, s) else sprintf('%d:%02d', m, s)
+  }
+  
+  if (length(sec) > 1) unname(sapply(sec, fmt)) else fmt(sec)
 }
 ## -------- ##
 ##          ##
@@ -111,12 +118,8 @@ addTime <- function(times) {
     # Adds multiple time values together.  
     # Input: Vector of times in "HH:MM:SS" or "MM:SS" as strings, or MM.SS as numerics.  
     # Output: Summed time in "HH:MM:SS" or "MM:SS" format.  
-    totalSec <- sum(as.numeric(sapply(times, multTime, multiplier=1, inSeconds=TRUE)))  
-
-    M <- totalSec %/% 60
-    S <- totalSec %% 60
-
-    return(multTime(paste(M, S, sep=':'), 1)) # Convert back to formatted time
+    sec <- sum(sapply(times, multTime, multiplier = 1, inSeconds = TRUE))
+    multTime(sec %/% 60 + (sec %% 60) / 100, 1)  # Feed as MM.SS-style numeric
 }
 ## --------------------------- ##
 ##                             ##
