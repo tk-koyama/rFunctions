@@ -184,4 +184,4 @@ TwoStageInf(p0=0.3, p1=0.5, n1=19, R1=7, nT=39, RT=17, x1=7, m2=23, x2=10)
 # x1 <- 5
 # m2 <- nT - n1 ## No sample size change
 # x2 <- 2
-TwoStageInf(p0=0.05, p1=0.25, n1=13, R1=1, nT=20, RT=3, x1=5, m2=7, x2=2)
+# ?? TwoStageInf(p0=0.05, p1=0.25, n1=13, R1=1, nT=20, RT=3, x1=5, m2=7, x2=2) ## ?? 
