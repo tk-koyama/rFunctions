@@ -46,32 +46,36 @@ groupSum <- function(v, g=NULL, data=NULL, Combined=TRUE, select_stats=NULL, omi
 ## Clean REDCap data ##
 ##                   ##
 ## ----------------- ##
-editRedCapData <- function(d, changeNames=TRUE) {
-    ## Requires library('Hmisc')
+editRedCapData <- function(d, changeNames=TRUE){
+  factor_cols <- grep('\\.factor$', names(d), value=TRUE)
+  if(length(factor_cols) == 0) return(d)
 
-    # Identify columns ending in '.factor'
-    factor_cols <- grep("\\.factor$", names(d), value = TRUE)
-    if (length(factor_cols) == 0) return(d)  # Return unchanged if no factor columns exist
+  get_lab <- function(x){
+    lb <- Hmisc::label(x)
+    if(length(lb) == 0 || is.null(lb) || is.na(lb) || identical(lb, '') ) NULL else lb }
 
-    # Extract base names by removing '.factor' suffix
-    base_names <- gsub("\\.factor$", "", factor_cols)
-
-    # Replace numeric columns with their factor counterparts while preserving labels
-    for (base in base_names) {
-        num_col <- match(base, names(d))  # Get numeric column index
-        fac_col <- match(paste0(base, ".factor"), names(d))  # Get corresponding factor column index
-
-        if (!is.na(num_col) & !is.na(fac_col)) {  # Use `is.na()` check
-            d[[num_col]] <- structure(d[[fac_col]], label = label(d[[num_col]]))  # Replace & preserve label
-        }
+  for(fac_name in factor_cols){
+    base <- sub('\\.factor$', '', fac_name)
+    if(base %in% names(d)){
+      base_lab <- get_lab(d[[base]])
+      fac_lab  <- get_lab(d[[fac_name]])
+      # replace values with factor version
+      d[[base]] <- d[[fac_name]]
+      # keep *.factor label if present; otherwise keep original base label
+      use_lab <- if(!is.null(fac_lab)) fac_lab else base_lab
+      if(!is.null(use_lab)) Hmisc::label(d[[base]]) <- use_lab
+    } else {
+      # if base is missing, create it from *.factor and carry its label (if any)
+      d[[base]] <- d[[fac_name]]
+      fac_lab <- get_lab(d[[fac_name]])
+      if(!is.null(fac_lab)) Hmisc::label(d[[base]]) <- fac_lab
     }
-    # Remove redundant '.factor' columns
-    d <- d[, !names(d) %in% factor_cols]
-    # Optionally rename columns
-    if (changeNames){
-        names(d) <- capitalize(gsub("_+", ".", names(d)))  # Replace underscores and capitalize names
-    }
-    return(d)
+  }
+  # drop the *.factor columns
+  d <- d[ , !(names(d) %in% factor_cols), drop=FALSE]
+    names(d) <- gsub('_+', '_', names(d))
+  if(changeNames) names(d) <- Hmisc::capitalize(names(d))
+  d
 }
 ## --------------- ##
 ##                 ##
