@@ -198,7 +198,7 @@ for(i in seq_along(group_positions)) {
     }
     if(fig_type[i] %in% 'bd'){ 
         bdp <- do.call(boxplot, c(list(this$y, add=TRUE, at=group_positions[i], outline=FALSE, col=box_col[i], yaxt='n'), boxplot_args))
-        ol <- this[ this$y %in% bpp$out, ]
+        ol <- this[ this$y %in% bdp$out, ]
         do.call(points, c(list(group_positions[i] + ol$jitter_pos * jitter_amount, ol$y, col=ol$col, pch=ol$pch), points_args))
     } 
 }
@@ -726,9 +726,9 @@ dsplot.default <- function(x, y, bkgr=TRUE, col=1, pch=19, cex=0.8, ...) {
     box.size <- ceiling(sqrt(max.freq))
     X <- range(x) + c(0, 1)
     Y <- range(y) + c(0, 1)
-    plot(X, Y, las=1, type='n', xaxs='i', yaxs='i', bty='n', xaxt='n', yaxt='n', ...)
-    axis(1, at=pretty(x)+.5, labels=pretty(x), tick=FALSE, las=1)
-    axis(2, at=pretty(y)+.5, labels=pretty(y), tick=FALSE, las=1)
+    plot(X, Y, las=1, type='n', xaxs='i', yaxs='i', bty='n', xaxt='n', yaxt='n', xlab='', ylab='')
+    # axis(1, at=pretty(x)+.5, labels=pretty(x), tick=FALSE, las=1)
+    #axis(2, at=pretty(y)+.5, labels=pretty(y), tick=FALSE, las=1)
 
     if (!bkgr) {
         for (i in y.levels) { segments(min(x), i, max(x)+1, i, col=grey(.9)) }
@@ -782,7 +782,7 @@ dsplot.default <- function(x, y, bkgr=TRUE, col=1, pch=19, cex=0.8, ...) {
         }
     }
 
-    points(dat$x + coord[sc[dat$idx, 1]] + dat$lx, dat$y + coord[sc[dat$idx, 2]] + dat$ly, pch=dat$pch, col=dat$col, cex=cex)
+    points(dat$x + coord[sc[dat$idx, 1]] + dat$lx, dat$y + coord[sc[dat$idx, 2]] + dat$ly, pch=dat$pch, col=dat$col, cex=cex, ...)
 
     table(factor(y, levels=rev(min(y):max(y))), factor(x, levels=min(x):max(x)))
 }

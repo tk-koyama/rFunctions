@@ -1,3 +1,15 @@
+## --------------- ##
+##                 ##
+## Format p values ##
+##                 ##
+## --------------- ##
+format_p <- Vectorize(function(p){
+  if(is.na(p)) return('')
+  if(p < 0.001) return('<0.001')
+  digits <- 1 - floor(log10(p))
+  formatC(p, format='f', digits=digits)
+})
+
 ## ------------------ ##
 ##                    ##
 ## Summary statistics ##
